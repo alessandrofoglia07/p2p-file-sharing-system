@@ -1,0 +1,10 @@
+.idea/
+.vscode/
+src/*.o
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+http_server
+build/
