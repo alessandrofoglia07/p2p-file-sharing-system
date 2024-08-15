@@ -6,7 +6,7 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 
 include_directories(include)
 
-set(RESOURCES src/main.c)
+set(RESOURCES src/main.c src/files.c src/socket.c)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
 
