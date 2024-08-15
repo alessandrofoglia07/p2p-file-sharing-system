@@ -6,10 +6,11 @@ set(CMAKE_C_STANDARD_REQUIRED True)
 
 include_directories(include)
 
-set(RESOURCES src/main.c src/files.c src/socket.c)
+set(RESOURCES src/main.c src/files.c src/socket.c
+        src/handle_requests.c)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
 
 add_executable(p2p_file_sharing_system ${RESOURCES})
 
-# target_link_libraries(p2p_file_sharing_system pthread)
+target_link_libraries(p2p_file_sharing_system pthread)
