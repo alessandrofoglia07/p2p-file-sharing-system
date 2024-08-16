@@ -28,13 +28,13 @@ int main() {
     pthread_t incoming_requests_thread;
     pthread_t outgoing_requests_thread;
 
-    int pthread_err = pthread_create(&incoming_requests_thread, NULL, handle_incoming_requests, &sockfd);
+    int pthread_err = pthread_create(&outgoing_requests_thread, NULL, handle_outgoing_requests, &sockfd);
     if (pthread_err) {
         printf("Thread creation failed: %d\n", pthread_err);
         close(sockfd);
         return 1;
     }
-    pthread_err = pthread_create(&outgoing_requests_thread, NULL, handle_outgoing_requests, &sockfd);
+    pthread_err = pthread_create(&incoming_requests_thread, NULL, handle_incoming_requests, &sockfd);
     if (pthread_err) {
         printf("Thread creation failed: %d\n", pthread_err);
         close(sockfd);
