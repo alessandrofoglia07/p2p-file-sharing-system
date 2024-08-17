@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "peers.h"
 
 fd_t create_socket(const int port) {
     fd_t sockfd;
@@ -37,11 +38,11 @@ fd_t create_socket(const int port) {
     return sockfd;
 }
 
-fd_t connect_to_peer(const char *peer_ip, const int peer_port) {
+fd_t connect_to_peer(const char *ip, const int port) {
     fd_t sockfd;
     struct sockaddr_in peer_addr = {
         .sin_family = AF_INET,
-        .sin_port = htons(peer_port)
+        .sin_port = htons(port)
     };
 
     // create socket for outgoing connections
@@ -51,7 +52,7 @@ fd_t connect_to_peer(const char *peer_ip, const int peer_port) {
     }
 
     // convert IP address to binary form
-    if (inet_pton(AF_INET, peer_ip, &peer_addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, ip, &peer_addr.sin_addr) <= 0) {
         printf("Invalid address or address not supported.\n");
         return -1;
     }
@@ -65,5 +66,29 @@ fd_t connect_to_peer(const char *peer_ip, const int peer_port) {
     return sockfd;
 }
 
-void discover_peers(const char *bootstrap_ip, const int bootstrap_port) {
+/**
+ * @return 0 on success, -1 on failure
+ */
+int discover_peers(const char *bootstrap_ip, const int bootstrap_port) {
+    const fd_t sockfd = connect_to_peer(bootstrap_ip, bootstrap_port);
+
+    if (sockfd < 0) {
+        return -1;
+    }
+
+    char buf[BUFFER_SIZE];
+
+    const char *msg = "GET_PEERS";
+    send(sockfd, msg, sizeof(msg), 0);
+
+    const int bytes_received = recv(sockfd, buf, BUFFER_SIZE, 0);
+    if (bytes_received < 0) {
+        perror("recv");
+        close(sockfd);
+        return -1;
+    }
+
+    load_peers_from_stream(buf);
+
+    return 0;
 }

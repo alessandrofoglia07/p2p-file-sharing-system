@@ -1,7 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define MAX_PEERS 10
+#define MAX_PEERS 100
 #define MAX_FILES 100
 #define CHUNK_SIZE 4096
 #define PORT 8080
@@ -21,6 +21,7 @@ typedef struct {
     int port; // port number (e.g., 8080)
 } Peer;
 
+extern File file_index[MAX_FILES];
 extern Peer peers[MAX_PEERS];
 extern int peer_count;
 

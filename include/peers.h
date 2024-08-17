@@ -1,8 +1,12 @@
 #ifndef PEERS_H
 #define PEERS_H
+#include <common.h>
+#include <stdio.h>
 
-int add_peer(const char ip[], const int port);
+void remove_peer(const Peer peer);
 
-void load_peers_from_file(const char *filename);
+int add_peer(const char ip[16], const int port);
+
+void load_peers_from_stream(FILE *stream);
 
 #endif //PEERS_H
