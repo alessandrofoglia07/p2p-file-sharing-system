@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 
-void *handle_incoming_requests(void *arg) {
+void *handle_client(void *arg) {
     fd_t *sockfd = (fd_t *) arg;
 
     return NULL;
