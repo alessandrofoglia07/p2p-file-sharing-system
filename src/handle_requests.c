@@ -1,7 +1,6 @@
 #include "handle_requests.h"
-
-#include <files.h>
-
+#include "files.h"
+#include "socket.h"
 #include "common.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,8 +27,6 @@ void print_invalid_command() {
     printf("Invalid command. Try again or type 'HELP' for a list of commands.\n");
 }
 
-j
-
 void *handle_outgoing_requests(void *arg) {
     const fd_t sockfd = *(fd_t *) arg;
 
@@ -50,7 +47,11 @@ void *handle_outgoing_requests(void *arg) {
                 print_invalid_command();
                 return NULL;
             }
-            add_peer(ip, atoi(port));
+            if (add_peer(ip, atoi(port)) < 0) {
+                printf("Max number of peers reached. Type REMOVE_PEER to remove an existent peer.\n");
+                return NULL;
+            }
+            printf("Peer added successfully.\n");
         } else if (strncmp(input, "REMOVE_PEER ", 12) == 0) {
             char *addr = strchr(input, ' ') + 1; // skip the space
             if (addr == NULL || *addr == '\0') {
@@ -78,6 +79,7 @@ void *handle_outgoing_requests(void *arg) {
                 return NULL;
             }
             remove_peer(peer);
+            printf("Peer removed successfully.\n");
         } else if (strcmp(input, "LIST_PEERS") == 0) {
             if (peer_count == 0) {
                 printf("No known peers. Type 'ADD_PEER' to add a peer.\n");
@@ -89,7 +91,7 @@ void *handle_outgoing_requests(void *arg) {
             }
         } else if (strcmp(input, "LIST_FILES") == 0) {
             if (file_count == 0) {
-                printf("No files available. Type 'UPLOAD_FILE' to upload a file.\n");
+                printf("No files available. Type 'UPLOAD_FILE' to upload a file to the file index.\n");
                 return NULL;
             }
             printf("Available files:\n");
@@ -103,6 +105,13 @@ void *handle_outgoing_requests(void *arg) {
                 return NULL;
             }
             upload_file(filepath);
+        } else if (strncmp(input, "REMOVE_FILE ", 12) == 0) {
+            const char *filename = strchr(input, ' ') + 1; // skip the space
+            if (filename == NULL || *filename == '\0') {
+                print_invalid_command();
+                return NULL;
+            }
+            remove_file(filename);
         } else if (strncmp(input, "SEARCH_FILE ", 12) == 0) {
             const char *filename = strchr(input, ' ') + 1; // skip the space
             if (filename == NULL || *filename == '\0') {
@@ -132,18 +141,7 @@ void *handle_outgoing_requests(void *arg) {
                 print_invalid_command();
                 return NULL;
             }
-        } else if (strncmp(input, "DISCONNECT ", 11) == 0) {
-            char *addr = strchr(input, ' ') + 1; // skip the space
-            if (addr == NULL || *addr == '\0') {
-                print_invalid_command();
-                return NULL;
-            }
-            const char *ip = strtok(addr, ":");
-            const char *port = strtok(NULL, ":");
-            if (ip == NULL || port == NULL || strlen(ip) > 15 || strlen(port) > 5) {
-                print_invalid_command();
-                return NULL;
-            }
+            start_peer_connection(ip, atoi(port));
         } else if (strcmp(input, "EXIT") == 0) {
             close(sockfd);
             handle_exit();

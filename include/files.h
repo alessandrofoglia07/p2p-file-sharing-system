@@ -1,6 +1,8 @@
 #ifndef FILES_H
 #define FILES_H
 
+void remove_file(const char *filename);
+
 void upload_file(const char *filepath);
 
 void search_file(const char *filename);

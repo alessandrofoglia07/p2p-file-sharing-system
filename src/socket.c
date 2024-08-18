@@ -85,3 +85,6 @@ int discover_peers(const char *bootstrap_ip, const int bootstrap_port) {
 
     return 0;
 }
+
+void start_peer_connection(const char *ip, int port) {
+}

@@ -9,4 +9,6 @@ fd_t connect_to_peer(const char *ip, int port);
 
 int discover_peers(const char *bootstrap_ip, int bootstrap_port);
 
+void start_peer_connection(const char *ip, int port);
+
 #endif //SOCKET_H
