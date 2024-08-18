@@ -7,10 +7,10 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-
 #include "peers.h"
 
 File file_index[MAX_FILES];
+int file_count;
 Peer peers[MAX_PEERS];
 int peer_count = 0;
 

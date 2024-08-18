@@ -1,8 +1,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define MAX_PEERS 100
-#define MAX_FILES 100
+#define MAX_PEERS 1000
+#define MAX_FILES 1000
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define PEERS_FILE "peers.txt"
@@ -21,6 +21,7 @@ typedef struct {
 } Peer;
 
 extern File file_index[MAX_FILES];
+extern int file_count;
 extern Peer peers[MAX_PEERS];
 extern int peer_count;
 

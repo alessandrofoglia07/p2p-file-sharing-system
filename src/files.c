@@ -1,5 +1,8 @@
 #include "files.h"
 
+void upload_file(const char *filepath) {
+}
+
 void search_file(const char *filename) {
 }
 

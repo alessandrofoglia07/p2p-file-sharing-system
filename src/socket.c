@@ -52,22 +52,18 @@ fd_t connect_to_peer(const char *ip, const int port) {
 
     // convert IP address to binary form
     if (inet_pton(AF_INET, ip, &peer_addr.sin_addr) <= 0) {
-        printf("Invalid address or address not supported.\n");
+        printf("Invalid address or address not supported. Address: %s:%d\n", ip, port);
         return -1;
     }
 
     // connect to peer
     if (connect(sockfd, (struct sockaddr *) &peer_addr, sizeof(peer_addr)) < 0) {
-        printf("Connection failed.\n");
         return -1;
     }
 
     return sockfd;
 }
 
-/**
- * @return 0 on success, -1 on failure
- */
 int discover_peers(const char *bootstrap_ip, const int bootstrap_port) {
     const fd_t sockfd = connect_to_peer(bootstrap_ip, bootstrap_port);
     if (sockfd < 0) {

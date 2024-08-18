@@ -34,10 +34,13 @@ void save_peers_to_file(const char *filename) {
     for (int i = 0; i < peer_count; i++) {
         fprintf(file, "%s:%d\n", peers[i].ip, peers[i].port);
     }
+    fclose(file);
 }
 
 void load_peers_from_file(const char *filename) {
-    FILE *file = fopen(filename, "r");
+    FILE *file = fopen(filename, "w"); // create file if it doesn't exist
+    fclose(file);
+    file = fopen(filename, "r"); // open file for reading
     if (file == NULL) {
         printf("File not found: %s\n", filename);
         exit(EXIT_FAILURE);
@@ -51,6 +54,7 @@ void load_peers_from_file(const char *filename) {
             break;
         }
     }
+    fclose(file);
 }
 
 void load_peers_from_string(const char *data) {
