@@ -3,9 +3,7 @@
 
 #define MAX_PEERS 100
 #define MAX_FILES 100
-#define CHUNK_SIZE 4096
 #define PORT 8080
-#define DEFAULT_BOOTSTRAP_IP "192.168.1.1"
 #define BUFFER_SIZE 1024
 #define PEERS_FILE "peers.txt"
 
@@ -13,6 +11,7 @@ typedef int fd_t;
 
 typedef struct {
     char filename[256];
+    char filepath[512];
 } File;
 
 // Peers are saved in file in the format: "IP:PORT\n" (max size of 32 bytes)
