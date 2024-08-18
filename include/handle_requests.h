@@ -1,6 +1,5 @@
 #ifndef HANDLE_REQUESTS_H
 #define HANDLE_REQUESTS_H
-#include <common.h>
 
 void *handle_client(void *arg);
 
