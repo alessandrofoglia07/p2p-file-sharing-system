@@ -1,6 +1,5 @@
 #include "socket.h"
 #include "common.h"
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -71,16 +70,14 @@ fd_t connect_to_peer(const char *ip, const int port) {
  */
 int discover_peers(const char *bootstrap_ip, const int bootstrap_port) {
     const fd_t sockfd = connect_to_peer(bootstrap_ip, bootstrap_port);
-
     if (sockfd < 0) {
         return -1;
     }
 
+    const char *req = "GET_PEERS";
+    send(sockfd, req, sizeof(req), 0);
+
     char buf[BUFFER_SIZE];
-
-    const char *msg = "GET_PEERS";
-    send(sockfd, msg, sizeof(msg), 0);
-
     const int bytes_received = recv(sockfd, buf, BUFFER_SIZE, 0);
     if (bytes_received < 0) {
         perror("recv");
@@ -88,7 +85,7 @@ int discover_peers(const char *bootstrap_ip, const int bootstrap_port) {
         return -1;
     }
 
-    load_peers_from_stream(buf);
+    load_peers_from_string(buf);
 
     return 0;
 }
