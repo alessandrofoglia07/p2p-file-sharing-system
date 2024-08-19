@@ -22,7 +22,11 @@ int main() {
     // load known peers from file
     printf("Loading known peers from file...\n");
     load_peers_from_file(PEERS_FILE);
-    printf("Peers loaded.\n");
+    if (peer_count == 0) {
+        printf("No peers found in file. To add peers manually, you can type 'ADD_PEER'.\n");
+    } else {
+        printf("Peers loaded.\n");
+    }
 
     // contact known peers to discover more peers
     for (int i = 0; i < peer_count; i++) {

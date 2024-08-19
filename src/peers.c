@@ -4,9 +4,9 @@
 #include "common.h"
 #include <string.h>
 
-void remove_peer(const Peer peer) {
+void remove_peer(const char ip[16], const int port) {
     for (int i = 0; i < peer_count; i++) {
-        if (strcmp(peers[i].ip, peer.ip) == 0 && peers[i].port == peer.port) {
+        if (strcmp(peers[i].ip, ip) == 0 && peers[i].port == port) {
             for (int j = i; j < peer_count - 1; j++) {
                 peers[j] = peers[j + 1];
             }

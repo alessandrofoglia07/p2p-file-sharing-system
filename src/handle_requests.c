@@ -23,8 +23,8 @@ void *handle_client(void *arg) {
     return NULL;
 }
 
-void print_invalid_command() {
-    printf("Invalid command. Try again or type 'HELP' for a list of commands.\n");
+void print_missing_arguments() {
+    printf("Missing or invalid arguments. Type 'HELP' for a list of commands.\n");
 }
 
 void *handle_outgoing_requests(void *arg) {
@@ -38,13 +38,13 @@ void *handle_outgoing_requests(void *arg) {
         if (strncmp(input, "ADD_PEER ", 9) == 0) {
             char *addr = strchr(input, ' ') + 1; // skip the space
             if (addr == NULL || *addr == '\0') {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             const char *ip = strtok(addr, ":");
             const char *port = strtok(NULL, ":");
             if (ip == NULL || port == NULL || strlen(ip) > 15 || strlen(port) > 5) {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             if (add_peer(ip, atoi(port)) < 0) {
@@ -55,21 +55,18 @@ void *handle_outgoing_requests(void *arg) {
         } else if (strncmp(input, "REMOVE_PEER ", 12) == 0) {
             char *addr = strchr(input, ' ') + 1; // skip the space
             if (addr == NULL || *addr == '\0') {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             const char *ip = strtok(addr, ":");
             const char *port = strtok(NULL, ":");
             if (ip == NULL || port == NULL || strlen(ip) > 15 || strlen(port) > 5) {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
-            Peer peer;
-            strcpy(peer.ip, ip);
-            peer.port = atoi(port);
             short peer_found = 0;
             for (int i = 0; i < peer_count; i++) {
-                if (strcmp(peer.ip, ip) && peer.port == atoi(port)) {
+                if (strcmp(peers[i].ip, ip) && peers[i].port == atoi(port)) {
                     peer_found = 1;
                     break;
                 }
@@ -78,7 +75,7 @@ void *handle_outgoing_requests(void *arg) {
                 printf("Peer not found. Try again or type 'LIST_PEERS' to display a list of peers.\n");
                 return NULL;
             }
-            remove_peer(peer);
+            remove_peer(ip, atoi(port));
             printf("Peer removed successfully.\n");
         } else if (strcmp(input, "LIST_PEERS") == 0) {
             if (peer_count == 0) {
@@ -101,28 +98,28 @@ void *handle_outgoing_requests(void *arg) {
         } else if (strncmp(input, "UPLOAD_FILE ", 12) == 0) {
             const char *filepath = strchr(input, ' ') + 1; // skip the space
             if (filepath == NULL || *filepath == '\0') {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             upload_file(filepath);
         } else if (strncmp(input, "REMOVE_FILE ", 12) == 0) {
             const char *filename = strchr(input, ' ') + 1; // skip the space
             if (filename == NULL || *filename == '\0') {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             remove_file(filename);
         } else if (strncmp(input, "SEARCH_FILE ", 12) == 0) {
             const char *filename = strchr(input, ' ') + 1; // skip the space
             if (filename == NULL || *filename == '\0') {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             search_file(filename);
         } else if (strncmp(input, "DOWNLOAD_FILE ", 14) == 0) {
             char *params = strchr(input, ' ') + 1; // skip the space
             if (params == NULL || *params == '\0') {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             const char *filename = strtok(params, " ");
@@ -132,13 +129,13 @@ void *handle_outgoing_requests(void *arg) {
         } else if (strncmp(input, "CONNECT ", 8) == 0) {
             char *addr = strchr(input, ' ') + 1; // skip the space
             if (addr == NULL || *addr == '\0') {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             const char *ip = strtok(addr, ":");
             const char *port = strtok(NULL, ":");
             if (ip == NULL || port == NULL || strlen(ip) > 15 || strlen(port) > 5) {
-                print_invalid_command();
+                print_missing_arguments();
                 return NULL;
             }
             start_peer_connection(ip, atoi(port));
@@ -149,7 +146,7 @@ void *handle_outgoing_requests(void *arg) {
             printf(
                 "ADD_PEER\nAdd a peer to the network.\nUsage: ADD_PEER 192.168.1.10:8080\nResponse: Acknowledgment or error message.\n\nREMOVE_PEER\nRemove a peer from the network.\nUsage: REMOVE_PEER 192.168.1.10:8080\nResponse: Acknowledgment or error message.\n\nLIST_PEERS\nList all known peers.\nUsage: LIST_PEERS\nResponse: A list of all known peers.\n\nLIST_FILES\nList all files available on the peer.\nUsage: LIST_FILES\nResponse: A list of files available on the peer.\n\nUPLOAD_FILE\nUpload a file to the peer.\nUsage: UPLOAD_FILE filepath\nResponse: Success or error message.\n\nSEARCH_FILE\nSearch for a file in the network.\nUsage: SEARCH_FILE filename\nResponse: A list of peers that have the file.\n\nDOWNLOAD_FILE\nDownload a file from a peer.\nUsage: DOWNLOAD_FILE filename 192.168.1.10:8080\nResponse: Success or error message.\n\nCONNECT\nConnect to a peer.\nUsage: CONNECT 192.168.1.10:8080\nResponse: Acknowledgment or error message.\n\nDISCONNECT\nDisconnect from a peer.\nUsage: DISCONNECT 192.168.1.10:8080\nResponse: Acknowledgment or error message.\n\nEXIT\nSafely exit the network and close the application.\nUsage: EXIT\nResponse: Graceful shutdown message.\n");
         } else {
-            print_invalid_command();
+            printf("Invalid command. Try again or type 'HELP' for a list of commands.\n");
         }
     }
 }

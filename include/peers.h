@@ -1,8 +1,7 @@
 #ifndef PEERS_H
 #define PEERS_H
-#include <common.h>
 
-void remove_peer(Peer peer);
+void remove_peer(const char ip[16], int port);
 
 int add_peer(const char ip[16], int port);
 
