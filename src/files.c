@@ -1,7 +1,10 @@
 #include <common.h>
+#include <socket.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/socket.h>
 
 void remove_file(const char *filename) {
     short found = 0;
@@ -34,7 +37,24 @@ void upload_file(const char *filepath) {
     printf("File %s uploaded successfully to file index.\n", file.filename);
 }
 
+// TODO: maybe optimize this
 void search_file(const char *filename) {
+    for (int i = 0; i < peer_count; i++) {
+        const fd_t sockfd = connect_to_peer(peers[i].ip, peers[i].port);
+        if (sockfd < 0) {
+            continue;
+        }
+        const char req[1024];
+        sprintf(req, "SEARCH %s\n", filename);
+        send(sockfd, req, strlen(req), 0);
+        char res[1024];
+        recv(sockfd, res, 1024, 0);
+        close(sockfd);
+        if (strcmp(res, "FOUND") == 0) {
+            printf("File %s found at %s:%d\n", filename, peers[i].ip, peers[i].port);
+            return;
+        }
+    }
 }
 
 void download_file(const char *filename, const char *peer_ip, const int peer_port) {
