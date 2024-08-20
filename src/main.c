@@ -13,6 +13,7 @@ File file_index[MAX_FILES];
 int file_count;
 Peer peers[MAX_PEERS];
 int peer_count = 0;
+FingerTable finger_table;
 
 int main() {
     signal(SIGINT, handle_exit); // gracefully handle ctrl+c
