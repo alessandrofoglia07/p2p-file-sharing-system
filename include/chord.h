@@ -23,13 +23,14 @@ typedef struct FileEntry {
     struct FileEntry *next;
 } FileEntry;
 
-typedef struct FingerTable {
-    Node *entries[M];
-} FingerTable;
+// checks if id is in the interval (a, b)
+int is_in_interval(const uint8_t *id, const uint8_t *a, const uint8_t *b);
 
 Node *create_node(const char *ip, int port);
 
-void join(Node *n, Node *n_prime);
+void create_ring(Node *n)
+
+void join_ring(Node *n, Node *n_prime);
 
 void stabilize(Node *n);
 
