@@ -1,9 +1,24 @@
 #ifndef CHORD_H
 #define CHORD_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define M 160 // number of bits in the hash (SHA-1)
+#define MSG_SIZE 1024
+#define MSG_JOIN "JOIN"
+#define MSG_NOTIFY "NOTIFY"
+#define MSG_FIND_SUCCESSOR "FIND_SUCCESSOR"
+#define MSG_STABILIZE "STABILIZE"
+#define MSG_REPLY "REPLY"
+
+// simple message protocol
+typedef struct {
+    char type[16]; // message type (e.g. JOIN, NOTIFY, FIND_SUCCESSOR, STABILIZE, REPLY)
+    uint8_t id[20]; // ID involved (e.g. the ID to find a successor for)
+    char ip[16]; // IP address of the sender
+    int port; // port of the sender
+} Message;
 
 typedef struct Node {
     uint8_t id[20]; // SHA-1 hash
@@ -13,6 +28,7 @@ typedef struct Node {
     struct Node *predecessor;
     struct Node *finger[M];
     struct FileEntry *files;
+    int sockfd;
 } Node;
 
 typedef struct FileEntry {
@@ -43,6 +59,10 @@ void check_predecessor(Node *n);
 Node *find_successor(Node *n, const uint8_t *id);
 
 Node *closest_preceding_node(Node *n, const uint8_t *id);
+
+void send_message(Node *sender, Node *receiver, const char *msg);
+
+void receive_message(Node *n, char *buffer, size_t buffer_size);
 
 void store_file(Node *n, const char *filename);
 
