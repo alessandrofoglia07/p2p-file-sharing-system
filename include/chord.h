@@ -11,6 +11,7 @@
 #define MSG_FIND_SUCCESSOR "FIND_SUCCESSOR"
 #define MSG_STABILIZE "STABILIZE"
 #define MSG_REPLY "REPLY"
+#define MSG_HEARTBEAT "HEARTBEAT"
 
 // simple message protocol
 typedef struct {
@@ -46,11 +47,11 @@ Node *create_node(const char *ip, int port);
 
 void create_ring(Node *n)
 
-void join_ring(Node *n, Node *n_prime);
+void join_ring(Node *n, const Node *n_prime);
 
 void stabilize(Node *n);
 
-void notify(Node *n, Node *n_prime);
+void notify(const Node *n, const Node *n_prime);
 
 void fix_fingers(Node *n, int *next);
 
@@ -60,9 +61,9 @@ Node *find_successor(Node *n, const uint8_t *id);
 
 Node *closest_preceding_node(Node *n, const uint8_t *id);
 
-void send_message(Node *sender, Node *receiver, const char *msg);
+int send_message(const Node *sender, const Node *receiver, const char *msg);
 
-void receive_message(Node *n, char *buffer, size_t buffer_size);
+int receive_message(const Node *n, char *buffer, const size_t buffer_size);
 
 void store_file(Node *n, const char *filename);
 
