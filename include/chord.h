@@ -1,10 +1,10 @@
 #ifndef CHORD_H
 #define CHORD_H
 
-#include <stddef.h>
 #include <stdint.h>
 
 #define M 160 // number of bits in the hash (SHA-1)
+#define HASH_SIZE 20 // size of the hash in bytes
 #define MSG_SIZE 1024
 #define MSG_JOIN "JOIN"
 #define MSG_NOTIFY "NOTIFY"
@@ -12,7 +12,7 @@
 #define MSG_STABILIZE "STABILIZE"
 #define MSG_REPLY "REPLY"
 #define MSG_HEARTBEAT "HEARTBEAT"
-#define MSG_STORE_FILE "MSG_STORE_FILE"
+#define MSG_STORE_FILE "STORE_FILE"
 
 // simple message protocol
 typedef struct {
@@ -49,11 +49,11 @@ Node *create_node(const char *ip, int port);
 
 void create_ring(Node *n);
 
-void join_ring(Node *n, const Node *n_prime);
+void join_ring(const Node *n, const Node *n_prime);
 
 void stabilize(Node *n);
 
-void notify(const Node *n, const Node *n_prime);
+void notify(Node *n, Node *n_prime);
 
 void fix_fingers(Node *n, int *next);
 
@@ -63,9 +63,9 @@ Node *find_successor(Node *n, const uint8_t *id);
 
 Node *closest_preceding_node(Node *n, const uint8_t *id);
 
-int send_message(const Node *sender, const Node *receiver, const char *msg, size_t msg_len);
+int send_message(const Node *sender, const Node *receiver, const Message *msg);
 
-int receive_message(const Node *n, char *buffer, size_t buffer_size);
+int receive_message(const Node *n, Message *msg);
 
 void store_file(Node *n, const char *filename);
 
