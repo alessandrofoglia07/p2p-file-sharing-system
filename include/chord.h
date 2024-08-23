@@ -12,6 +12,7 @@
 #define MSG_STABILIZE "STABILIZE"
 #define MSG_REPLY "REPLY"
 #define MSG_HEARTBEAT "HEARTBEAT"
+#define MSG_STORE_FILE "MSG_STORE_FILE"
 
 // simple message protocol
 typedef struct {
@@ -45,7 +46,7 @@ int is_in_interval(const uint8_t *id, const uint8_t *a, const uint8_t *b);
 
 Node *create_node(const char *ip, int port);
 
-void create_ring(Node *n)
+void create_ring(Node *n);
 
 void join_ring(Node *n, const Node *n_prime);
 
@@ -63,7 +64,7 @@ Node *closest_preceding_node(Node *n, const uint8_t *id);
 
 int send_message(const Node *sender, const Node *receiver, const char *msg);
 
-int receive_message(const Node *n, char *buffer, const size_t buffer_size);
+int receive_message(const Node *n, char *buffer, size_t buffer_size);
 
 void store_file(Node *n, const char *filename);
 

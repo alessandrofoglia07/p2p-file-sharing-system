@@ -8,11 +8,13 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-// TODO: Implement error handling for socket api
-
 // checks if id is in the interval (a, b)
 int is_in_interval(const uint8_t *id, const uint8_t *a, const uint8_t *b) {
-    return memcmp(id, a, 20) > 0 && memcmp(id, b, 20) < 0;
+    if (memcmp(a, b, 20) < 0) {
+        return memcmp(id, a, 20) > 0 && memcmp(id, b, 20) < 0;
+    } else {
+        return memcmp(id, a, 20) > 0 || memcmp(id, b, 20) < 0;
+    }
 }
 
 Node *create_node(const char *ip, const int port) {
@@ -54,6 +56,7 @@ Node *create_node(const char *ip, const int port) {
 // create new chord ring
 void create_ring(Node *n) {
     n->predecessor = NULL;
+    free(n->successor);
     n->successor = n;
 }
 
@@ -75,6 +78,7 @@ void join_ring(Node *n, const Node *n_prime) {
     const Message *response = (Message *) buf;
     Node *successor = create_node(response->ip, response->port);
     memcpy(successor->id, response->id, 20);
+    free(n->successor);
     n->successor = successor;
 }
 
@@ -102,7 +106,12 @@ void stabilize(Node *n) {
 
     // if x is in the interval (n, successor), then update the successor
     if (is_in_interval(x->id, n->id, n->successor->id)) {
+        if (n->successor != x) {
+            free(n->successor);
+        }
         n->successor = x;
+    } else {
+        free(x);
     }
 
     // notify the successor
@@ -197,10 +206,13 @@ int send_message(const Node *sender, const Node *receiver, const char *msg) {
     receiver_addr.sin_family = AF_INET;
     receiver_addr.sin_port = htons(receiver->port);
     inet_pton(AF_INET, receiver->ip, &receiver_addr.sin_addr);
-    const int ret = sendto(sender->sockfd, msg, strlen(msg), 0, (struct sockaddr *) &receiver_addr,
-                           sizeof(receiver_addr));
-    if (ret < 0) {
+    int ret = sendto(sender->sockfd, msg, strlen(msg), 0, (struct sockaddr *) &receiver_addr,
+                     sizeof(receiver_addr));
+    int retries = 0;
+    while (ret < 0 && retries < 3) {
         perror("sendto");
+        ret = sendto(sender->sockfd, msg, strlen(msg), 0, (struct sockaddr *) &receiver_addr, sizeof(receiver_addr));
+        retries++;
     }
     return ret;
 }
@@ -208,14 +220,51 @@ int send_message(const Node *sender, const Node *receiver, const char *msg) {
 int receive_message(const Node *n, char *buffer, const size_t buffer_size) {
     struct sockaddr_in sender_addr;
     socklen_t sender_addr_len = sizeof(sender_addr);
-    const int ret = recvfrom(n->sockfd, buffer, buffer_size, 0, (struct sockaddr *) &sender_addr, &sender_addr_len);
-    if (ret < 0) {
+    int ret = recvfrom(n->sockfd, buffer, buffer_size, 0, (struct sockaddr *) &sender_addr, &sender_addr_len);
+    int retries = 0;
+    while (ret < 0 && retries < 3) {
         perror("recvfrom");
+        ret = recvfrom(n->sockfd, buffer, buffer_size, 0, (struct sockaddr *) &sender_addr, &sender_addr_len);
+        retries++;
     }
     return ret;
 }
 
 void store_file(Node *n, const char *filename) {
+    uint8_t file_id[20];
+    hash(filename, file_id);
+
+    Node *responsible_node = find_successor(n, file_id);
+
+    if (memcmp(n->id, responsible_node->id, 20) == 0) {
+        FileEntry *new_entry = (FileEntry *) malloc(sizeof(FileEntry));
+        if (new_entry == NULL) {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
+
+        memcpy(new_entry->id, file_id, 20);
+        strncpy(new_entry->filename, filename, sizeof(new_entry->filename));
+        strncpy(new_entry->owner_ip, n->ip, sizeof(new_entry->owner_ip));
+        new_entry->owner_port = n->port;
+
+        new_entry->next = n->files;
+        n->files = new_entry;
+
+        printf("File '%s' stored on node %s:%d\n", filename, n->ip, n->port);
+    } else {
+        // TODO: forward the file to the responsible node
+        Message msg;
+        strcpy(msg.type, MSG_STORE_FILE);
+        memcpy(msg.id, file_id, 20);
+        strncpy(msg.ip, n->ip, sizeof(msg.ip));
+        msg.port = n->port;
+
+        send_message(n, responsible_node, (char *) &msg);
+
+        printf("File '%s' forwarded to node %s:%d for storage\n", filename, responsible_node->ip,
+               responsible_node->port);
+    }
 }
 
 FileEntry *find_file(Node *n, const char *filename) {
