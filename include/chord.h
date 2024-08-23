@@ -20,6 +20,7 @@ typedef struct {
     uint8_t id[20]; // ID involved (e.g. the ID to find a successor for)
     char ip[16]; // IP address of the sender
     int port; // port of the sender
+    char data[MSG_SIZE - 36]; // additional data (e.g. filename)
 } Message;
 
 typedef struct Node {
@@ -62,11 +63,14 @@ Node *find_successor(Node *n, const uint8_t *id);
 
 Node *closest_preceding_node(Node *n, const uint8_t *id);
 
-int send_message(const Node *sender, const Node *receiver, const char *msg);
+int send_message(const Node *sender, const Node *receiver, const char *msg, size_t msg_len);
 
 int receive_message(const Node *n, char *buffer, size_t buffer_size);
 
 void store_file(Node *n, const char *filename);
+
+void internal_store_file(Node *n, const char *filename, const uint8_t *file_id, const char *uploader_ip,
+                         int uploader_port);
 
 FileEntry *find_file(Node *n, const char *filename);
 
