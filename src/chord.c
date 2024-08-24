@@ -80,7 +80,10 @@ void join_ring(const Node *n, const Node *n_prime) {
 
     // recieve the successor's info
     Message response;
-    receive_message(n, &response);
+    if (receive_message(n, &response) < 0) {
+        printf("Failed to join the ring at %s:%d\n", n_prime->ip, n_prime->port);
+        exit(EXIT_FAILURE);
+    }
 
     memcpy(n->successor->id, response.id, HASH_SIZE);
     strcpy(n->successor->ip, response.ip);
@@ -207,13 +210,16 @@ int send_message(const Node *sender, const char *receiver_ip, const int receiver
     struct sockaddr_in receiver_addr = {0};
     receiver_addr.sin_family = AF_INET;
     receiver_addr.sin_port = htons(receiver_port);
-    inet_pton(AF_INET, receiver_ip, &receiver_addr.sin_addr);
+
+    if (inet_pton(AF_INET, receiver_ip, &receiver_addr.sin_addr) <= 0) {
+        perror("inet_pton failed");
+        return -1;
+    }
 
     char buffer[MSG_SIZE];
-    memcpy(buffer, msg, sizeof(Message));
+    memcpy(buffer, msg, MSG_SIZE);
 
-    return sendto(sender->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &receiver_addr,
-                  sizeof(receiver_addr));
+    return sendto(sender->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &receiver_addr, sizeof(receiver_addr));
 }
 
 int receive_message(const Node *n, Message *msg) {
@@ -221,9 +227,7 @@ int receive_message(const Node *n, Message *msg) {
     socklen_t sender_addr_len = sizeof(sender_addr);
 
     char buffer[MSG_SIZE];
-
-    const int bytes_read = recvfrom(n->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &sender_addr,
-                                    &sender_addr_len);
+    const int bytes_read = recvfrom(n->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &sender_addr, &sender_addr_len);
 
     if (bytes_read < 0) {
         perror("recvfrom");
@@ -231,7 +235,7 @@ int receive_message(const Node *n, Message *msg) {
     }
 
     if (bytes_read > 0) {
-        memcpy(msg, buffer, sizeof(Message));
+        memcpy(msg, buffer, MSG_SIZE);
     }
 
     return bytes_read;
@@ -337,4 +341,82 @@ FileEntry *find_file(Node *n, const char *filename) {
     file_entry->owner_port = response.port;
 
     return file_entry;
+}
+
+void handle_requests(Node *n, const Message *msg) {
+    if (strcmp(msg->type, MSG_JOIN) == 0) {
+        // JOIN request handling
+        Node *new_node = (Node *) malloc(sizeof(Node));
+        if (new_node == NULL) {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
+        memcpy(new_node->id, msg->id, HASH_SIZE);
+        strcpy(new_node->ip, msg->ip);
+        new_node->port = msg->port;
+
+        // find successor of new node
+        const Node *successor = find_successor(n, new_node->id);
+
+        // reply with successor info
+        Message response;
+        strcpy(response.type, MSG_REPLY);
+        memcpy(response.id, successor->id, HASH_SIZE);
+        strcpy(response.ip, successor->ip);
+        response.port = successor->port;
+
+        send_message(n, msg->ip, msg->port, &response);
+        free(new_node);
+    } else if (strcmp(msg->type, MSG_FIND_SUCCESSOR) == 0) {
+        // FIND_SUCCESSOR request handling
+        const Node *successor = find_successor(n, msg->id);
+
+        // reply with successor info
+        Message response;
+        strcpy(response.type, MSG_REPLY);
+        memcpy(response.id, successor->id, HASH_SIZE);
+        strcpy(response.ip, successor->ip);
+        response.port = successor->port;
+
+        send_message(n, msg->ip, msg->port, &response);
+    } else if (strcmp(msg->type, MSG_NOTIFY) == 0) {
+        // NOTIFY request handling
+        Node *new_predecessor = (Node *) malloc(sizeof(Node));
+        if (new_predecessor == NULL) {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
+        memcpy(new_predecessor->id, msg->id, HASH_SIZE);
+        strcpy(new_predecessor->ip, msg->ip);
+        new_predecessor->port = msg->port;
+
+        if (n->predecessor == NULL || is_in_interval(new_predecessor->id, n->predecessor->id, n->id)) {
+            n->predecessor = new_predecessor;
+        } else {
+            free(new_predecessor);
+        }
+    } else if (strcmp(msg->type, MSG_STORE_FILE) == 0) {
+        // STORE_FILE request handling
+        internal_store_file(n, msg->data, msg->id, msg->ip, msg->port);
+    } else if (strcmp(msg->type, MSG_HEARTBEAT) == 0) {
+        // HEARTBEAT request handling
+        Message response;
+        strcpy(response.type, MSG_REPLY);
+        memcpy(response.id, n->id, HASH_SIZE);
+        strcpy(response.ip, n->ip);
+        response.port = n->port;
+
+        send_message(n, msg->ip, msg->port, &response);
+    } else if (strcmp(msg->type, MSG_STABILIZE) == 0) {
+        // STABILIZE request handling
+        if (n->predecessor != NULL) {
+            Message response;
+            strcpy(response.type, MSG_REPLY);
+            memcpy(response.id, n->predecessor->id, HASH_SIZE);
+            strcpy(response.ip, n->predecessor->ip);
+            response.port = n->predecessor->port;
+
+            send_message(n, msg->ip, msg->port, &response);
+        }
+    }
 }

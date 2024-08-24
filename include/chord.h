@@ -5,7 +5,7 @@
 
 #define M 160 // number of bits in the hash (SHA-1)
 #define HASH_SIZE 20 // size of the hash in bytes
-#define MSG_SIZE 1024
+#define MSG_SIZE 512 // size of the message buffer
 #define MSG_JOIN "JOIN"
 #define MSG_NOTIFY "NOTIFY"
 #define MSG_FIND_SUCCESSOR "FIND_SUCCESSOR"
@@ -20,7 +20,8 @@ typedef struct {
     uint8_t id[20]; // ID involved (e.g. the ID to find a successor for)
     char ip[16]; // IP address of the sender
     int port; // port of the sender
-    char data[MSG_SIZE - 36]; // additional data (e.g. filename)
+    char data[MSG_SIZE - sizeof(char[16]) - sizeof(uint8_t[20]) - sizeof(char[16]) - sizeof(int)];
+    // additional data (e.g. filename)
 } Message;
 
 typedef struct Node {
