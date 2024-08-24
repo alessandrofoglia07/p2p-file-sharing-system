@@ -1,5 +1,7 @@
 #include "threads.h"
-#include "chord.h"
+#include "node.h"
+#include "stabilization.h"
+#include "file_entry.h"
 #include <ctype.h>
 #include <signal.h>
 #include <stdio.h>

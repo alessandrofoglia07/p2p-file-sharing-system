@@ -1,7 +1,7 @@
 #ifndef THREADS_H
 #define THREADS_H
 
-#include "chord.h"
+#include "node.h"
 
 void *node_thread(void *arg);
 
