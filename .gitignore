@@ -8,3 +8,5 @@ cmake_install.cmake
 Makefile
 http_server
 build/
+venv/
+visualize-nodes/

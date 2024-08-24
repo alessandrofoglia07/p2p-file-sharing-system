@@ -7,50 +7,59 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "peers.h"
+#include "threads.h"
+#include "chord.h"
 
-File file_index[MAX_FILES];
-int file_count;
-Peer peers[MAX_PEERS];
-int peer_count = 0;
-FingerTable finger_table;
+int main(const int argc, char *argv[]) {
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <IP> <PORT>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
 
-int main() {
     signal(SIGINT, handle_exit); // gracefully handle ctrl+c
-    // initialize server socket
-    fd_t sockfd = create_socket(PORT);
 
-    // load known peers from file
-    printf("Loading known peers from file...\n");
-    load_peers_from_file(PEERS_FILE);
-    if (peer_count == 0) {
-        printf("No peers found in file. To add peers manually, you can type 'ADD_PEER'.\n");
+    const char *ip = argv[1];
+    const int port = atoi(argv[2]);
+
+    Node *node = create_node(ip, port);
+
+    if (argc == 4) {
+        // join an existing ring
+        const char *existing_ip = argv[3];
+        const int existing_port = atoi(argv[4]);
+        Node *n_prime = create_node(existing_ip, existing_port);
+        join_ring(node, n_prime);
+        free(n_prime);
     } else {
-        printf("Peers loaded.\n");
+        // create a new ring
+        create_ring(node);
     }
 
-    // contact known peers to discover more peers
-    for (int i = 0; i < peer_count; i++) {
-        discover_peers(peers[i].ip, peers[i].port);
+
+    printf("Node running at %s:%d\n", ip, port);
+
+    pthread_t node_tid, listener_tid;
+    // start node thread (stabilize, fix fingers, check predecessor)
+    if (pthread_create(&node_tid, NULL, node_thread, node) != 0) {
+        perror("pthread_create");
+        return EXIT_FAILURE;
+    }
+    // start listener thread (accept incoming connections)
+    if (pthread_create(&listener_tid, NULL, listener_thread, node) != 0) {
+        perror("pthread_create");
+        return EXIT_FAILURE;
     }
 
-    // start thread to handle user i/o and outgoing requests
-    pthread_t outgoing_requests_thread;
-    int pthread_err = pthread_create(&outgoing_requests_thread, NULL, handle_outgoing_requests, &sockfd);
-    if (pthread_err) {
-        printf("Thread creation failed: %d\n", pthread_err);
-        close(sockfd);
-        return 1;
-    }
+    // handle user commands (blocking)
+    handle_user_commands(node);
 
-    // at the same time, start listening for incoming requests
-    while (1) {
-        fd_t client_socket = accept(sockfd, NULL, NULL);
-        pthread_t client_thread;
-        pthread_err = pthread_create(&client_thread, NULL, handle_client, &client_socket);
-        if (pthread_err) {
-            printf("Thread creation failed: %d\n", pthread_err);
-            close(client_socket);
-        }
-    }
+    printf("Exiting...\n");
+
+    pthread_cancel(listener_tid);
+    pthread_cancel(node_tid);
+    pthread_join(listener_tid, NULL);
+    pthread_join(node_tid, NULL);
+    cleanup_node(node);
+
+    return 0;
 }
