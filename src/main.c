@@ -1,14 +1,11 @@
-#include "handle_requests.h"
-#include "common.h"
-#include "socket.h"
+#include "threads.h"
+#include "stabilization.h"
 #include <sys/socket.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "threads.h"
-#include "chord.h"
 
 int main(const int argc, char *argv[]) {
     if (argc < 3) {

@@ -8,8 +8,12 @@ include_directories(include)
 
 set(RESOURCES src/main.c
         src/sha1.c
-        src/chord.c
         src/threads.c
+        src/node.c
+        src/file_entry.c
+        src/protocol.c
+        src/stabilization.c
+        src/utils.c
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
