@@ -76,7 +76,7 @@ void join_ring(const Node *n, const Node *n_prime) {
     strcpy(msg.ip, n->ip);
     msg.port = n->port;
 
-    send_message(n, n_prime, &msg);
+    send_message(n, n_prime->ip, n_prime->port, &msg);
 
     // recieve the successor's info
     Message response;
@@ -100,23 +100,21 @@ void stabilize(Node *n) {
     strcpy(msg.ip, n->ip);
     msg.port = n->port;
 
-    send_message(n, n->successor, &msg);
+    send_message(n, n->successor->ip, n->successor->port, &msg);
 
     Message response;
     receive_message(n, &response);
 
-    Node *x = (Node *) malloc(sizeof(Node));
-    if (x == NULL) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
-    memcpy(x->id, response.id, HASH_SIZE);
-    strcpy(x->ip, response.ip);
-    x->port = response.port;
+    Node x;
+    memcpy(x.id, response.id, HASH_SIZE);
+    strcpy(x.ip, response.ip);
+    x.port = response.port;
 
     // if x is in the interval (n, successor), then update the successor
-    if (is_in_interval(x->id, n->id, n->successor->id)) {
-        n->successor = x;
+    if (is_in_interval(x.id, n->id, n->successor->id)) {
+        memcpy(n->successor->id, x.id, HASH_SIZE);
+        strcpy(n->successor->ip, x.ip);
+        n->successor->port = x.port;
     }
 
     // notify the successor
@@ -131,7 +129,7 @@ void notify(Node *n, Node *n_prime) {
     strcpy(msg.ip, n_prime->ip);
     msg.port = n_prime->port;
 
-    send_message(n_prime, n, &msg);
+    send_message(n_prime, n->ip, n->port, &msg);
 
     if (n->predecessor == NULL || is_in_interval(n->id, n->predecessor->id, n->id)) {
         n->predecessor = n_prime;
@@ -144,11 +142,8 @@ void notify(Node *n, Node *n_prime) {
  */
 void fix_fingers(Node *n, int *next) {
     *next = (*next + 1) % M;
-    Node *old_finger = n->finger[*next];
-    n->finger[*next] = find_successor(n, n->finger[*next]->id);
-    if (old_finger != n) {
-        free(old_finger);
-    }
+    Node *finger = find_successor(n, n->finger[*next]->id);
+    n->finger[*next] = finger;
 }
 
 // called periodically. make sure predecessor is still alive
@@ -163,11 +158,8 @@ void check_predecessor(Node *n) {
     memcpy(msg.id, n->id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
     msg.port = n->port;
-    send_message(n, n->predecessor, &msg);
 
-    // receive response to check if the predecessor is still alive
-    Message response;
-    if (receive_message(n, &response) < 0) {
+    if (send_message(n, n->predecessor->ip, n->predecessor->port, &msg) < 0) {
         n->predecessor = NULL;
     }
 }
@@ -187,17 +179,13 @@ Node *find_successor(Node *n, const uint8_t *id) {
     strcpy(msg.ip, n->ip);
     msg.port = n->port;
 
-    send_message(n, current, &msg);
+    send_message(n, current->ip, current->port, &msg);
 
     // receive the successor's info
     Message response;
     receive_message(n, &response);
 
-    Node *successor = (Node *) malloc(sizeof(Node));
-    if (successor == NULL) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
+    Node *successor = n->successor;
     memcpy(successor->id, response.id, HASH_SIZE);
     strcpy(successor->ip, response.ip);
     successor->port = response.port;
@@ -215,25 +203,17 @@ Node *closest_preceding_node(Node *n, const uint8_t *id) {
     return n;
 }
 
-int send_message(const Node *sender, const Node *receiver, const Message *msg) {
+int send_message(const Node *sender, const char *receiver_ip, const int receiver_port, const Message *msg) {
     struct sockaddr_in receiver_addr = {0};
     receiver_addr.sin_family = AF_INET;
-    receiver_addr.sin_port = htons(receiver->port);
-    inet_pton(AF_INET, receiver->ip, &receiver_addr.sin_addr);
+    receiver_addr.sin_port = htons(receiver_port);
+    inet_pton(AF_INET, receiver_ip, &receiver_addr.sin_addr);
 
     char buffer[MSG_SIZE];
     memcpy(buffer, msg, sizeof(Message));
 
-    int ret = sendto(sender->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &receiver_addr,
-                     sizeof(receiver_addr));
-    int retries = 0;
-    while (ret < 0 && retries < 3) {
-        perror("sendto");
-        ret = sendto(sender->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &receiver_addr,
-                     sizeof(receiver_addr));
-        retries++;
-    }
-    return ret;
+    return sendto(sender->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &receiver_addr,
+                  sizeof(receiver_addr));
 }
 
 int receive_message(const Node *n, Message *msg) {
@@ -242,14 +222,12 @@ int receive_message(const Node *n, Message *msg) {
 
     char buffer[MSG_SIZE];
 
-    int bytes_read = recvfrom(n->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &sender_addr,
-                              &sender_addr_len);
-    int retries = 0;
-    while (bytes_read < 0 && retries < 3) {
+    const int bytes_read = recvfrom(n->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &sender_addr,
+                                    &sender_addr_len);
+
+    if (bytes_read < 0) {
         perror("recvfrom");
-        bytes_read = recvfrom(n->sockfd, buffer, MSG_SIZE, 0, (struct sockaddr *) &sender_addr,
-                              &sender_addr_len);
-        retries++;
+        return -1;
     }
 
     if (bytes_read > 0) {
@@ -277,7 +255,7 @@ void store_file(Node *n, const char *filename) {
         strncpy(msg.data, filename, sizeof(msg.data) - 1);
         msg.data[sizeof(msg.data) - 1] = '\0';
 
-        send_message(n, responsible_node, &msg);
+        send_message(n, responsible_node->ip, responsible_node->port, &msg);
 
         printf("File '%s' forwarded to node %s:%d for storage\n", filename, responsible_node->ip,
                responsible_node->port);
@@ -301,6 +279,18 @@ void internal_store_file(Node *n, const char *filename, const uint8_t *file_id, 
     n->files = new_entry;
 }
 
+void cleanup_node(Node *n) {
+    // free files
+    FileEntry *file = n->files;
+    while (file) {
+        FileEntry *next = file->next;
+        free(file);
+        file = next;
+    }
+    close(n->sockfd);
+    free(n);
+}
+
 FileEntry *find_file(Node *n, const char *filename) {
     uint8_t file_id[HASH_SIZE];
     hash(filename, file_id);
@@ -321,19 +311,30 @@ FileEntry *find_file(Node *n, const char *filename) {
     Message msg;
     strcpy(msg.type, MSG_FIND_SUCCESSOR);
     memcpy(msg.id, file_id, HASH_SIZE);
-    strcpy(msg.ip, n->ip);
+    strncpy(msg.ip, n->ip, sizeof(msg.ip));
     msg.port = n->port;
-    send_message(n, responsible_node, &msg);
+
+    send_message(n, responsible_node->ip, responsible_node->port, &msg);
     strncpy(msg.data, filename, sizeof(msg.data) - 1);
     msg.data[sizeof(msg.data) - 1] = '\0';
 
-    send_message(n, responsible_node, &msg);
+    send_message(n, responsible_node->ip, responsible_node->port, &msg);
 
     free(responsible_node);
 
-    // TODO: receive the file entry from the responsible node and return it
     Message response;
     receive_message(n, &response);
 
-    return NULL;
+    FileEntry *file_entry = (FileEntry *) malloc(sizeof(FileEntry));
+    if (file_entry == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    memcpy(file_entry->id, response.id, HASH_SIZE);
+    strncpy(file_entry->filename, response.data, sizeof(file_entry->filename));
+    strcpy(file_entry->owner_ip, response.ip);
+    file_entry->owner_port = response.port;
+
+    return file_entry;
 }

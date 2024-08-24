@@ -10,9 +10,9 @@
 #define MSG_NOTIFY "NOTIFY"
 #define MSG_FIND_SUCCESSOR "FIND_SUCCESSOR"
 #define MSG_STABILIZE "STABILIZE"
-#define MSG_REPLY "REPLY"
 #define MSG_HEARTBEAT "HEARTBEAT"
 #define MSG_STORE_FILE "STORE_FILE"
+#define MSG_REPLY "REPLY"
 
 // simple message protocol
 typedef struct {
@@ -63,7 +63,7 @@ Node *find_successor(Node *n, const uint8_t *id);
 
 Node *closest_preceding_node(Node *n, const uint8_t *id);
 
-int send_message(const Node *sender, const Node *receiver, const Message *msg);
+int send_message(const Node *sender, const char *receiver_ip, const int receiver_port, const Message *msg);
 
 int receive_message(const Node *n, Message *msg);
 
@@ -73,5 +73,9 @@ void internal_store_file(Node *n, const char *filename, const uint8_t *file_id, 
                          int uploader_port);
 
 FileEntry *find_file(Node *n, const char *filename);
+
+void cleanup_node(Node *n);
+
+void handle_requests(Node *n, const Message *msg);
 
 #endif //CHORD_H
