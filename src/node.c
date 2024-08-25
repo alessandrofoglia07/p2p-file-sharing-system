@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <threads.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 
@@ -42,7 +43,7 @@ Node *create_node(const char *ip, const int port) {
     struct sockaddr_in addr = {0};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    inet_pton(AF_INET, ip, &addr.sin_addr);
+    addr.sin_addr.s_addr = inet_addr(ip);
 
     if (bind(node->sockfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
         perror("bind");
@@ -67,7 +68,10 @@ void cleanup_node(Node *n) {
 }
 
 void handle_requests(Node *n, const Message *msg) {
-    if (strcmp(msg->type, MSG_JOIN) == 0) {
+    if (strcmp(msg->type, MSG_REPLY) == 0) {
+        // REPLY message handling (ignore, just push to reply queue for other threads)
+        push_message(&reply_queue, msg);
+    } else if (strcmp(msg->type, MSG_JOIN) == 0) {
         // JOIN request handling
         Node *new_node = (Node *) malloc(sizeof(Node));
         if (new_node == NULL) {
@@ -177,5 +181,7 @@ void handle_requests(Node *n, const Message *msg) {
             }
             fclose(file);
         }
+    } else {
+        printf("Unknown message type: %s\n", msg->type);
     }
 }

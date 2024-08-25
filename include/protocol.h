@@ -21,14 +21,18 @@ typedef struct {
     uint8_t id[20]; // ID involved (e.g. the ID to find a successor for)
     char ip[16]; // IP address of the sender
     int port; // port of the sender
-    struct Message *next;
     // additional data (e.g. filename)
     char data[MSG_SIZE - sizeof(char[16]) - sizeof(uint8_t[20]) - sizeof(char[16]) - sizeof(int)];
 } Message;
 
+typedef struct MessageNode {
+    Message *msg;
+    struct MessageNode *next;
+} MessageNode;
+
 typedef struct MessageQueue {
-    Message *head;
-    Message *tail;
+    MessageNode *head;
+    MessageNode *tail;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
 } MessageQueue;

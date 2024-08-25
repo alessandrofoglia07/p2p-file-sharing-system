@@ -34,9 +34,7 @@ int main(const int argc, char *argv[]) {
         // Join an existing ring
         const char *existing_ip = argv[3];
         const int existing_port = atoi(argv[4]);
-        Node *n_prime = create_node(existing_ip, existing_port);
-        join_ring(node, n_prime);
-        free(n_prime);
+        join_ring(node, existing_ip, existing_port);
     } else {
         // Create a new ring
         create_ring(node);

@@ -14,35 +14,41 @@
 void create_ring(Node *n) {
     n->predecessor = NULL;
     n->successor = n;
+    printf("New ring created.\n");
+    fflush(stdout);
 }
 
 // join an existing chord ring
-void join_ring(const Node *n, const Node *n_prime) {
-    // send JOIN message to n_prime
+void join_ring(Node *n, const char *existing_ip, const int existing_port) {
     Message msg;
     strcpy(msg.type, MSG_JOIN);
     memcpy(msg.id, n->id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
     msg.port = n->port;
 
-    send_message(n, n_prime->ip, n_prime->port, &msg);
+    send_message(n, existing_ip, existing_port, &msg);
 
-    // recieve the successor's info
-    Message response;
-    if (receive_message(n, &response) < 0) {
     const Message *response = pop_message(&reply_queue);
     if (response == NULL) {
-        printf("Failed to join the ring at %s:%d\n", n_prime->ip, n_prime->port);
+        printf("Failed to join the ring at %s:%d\n", existing_ip, existing_port);
         fflush(stdout);
         exit(EXIT_FAILURE);
     }
 
-    memcpy(n->successor->id, response.id, HASH_SIZE);
-    strcpy(n->successor->ip, response.ip);
-    n->successor->port = response.port;
-    memcpy(n->successor->id, response->id, HASH_SIZE);
-    strcpy(n->successor->ip, response->ip);
-    n->successor->port = response->port;
+    Node *successor = (Node *) malloc(sizeof(Node));
+    if (successor == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    memcpy(successor->id, response->id, HASH_SIZE);
+    strcpy(successor->ip, response->ip);
+    successor->port = response->port;
+
+    n->successor = successor;
+
+    printf("Joined the ring at %s:%d\n", n->successor->ip, n->successor->port);
+    fflush(stdout);
 }
 
 /*
@@ -147,13 +153,9 @@ Node *find_successor(Node *n, const uint8_t *id) {
     const Message *response = pop_message(&reply_queue);
 
     Node *successor = n->successor;
-    memcpy(successor->id, response.id, HASH_SIZE);
-    strcpy(successor->ip, response.ip);
-    successor->port = response.port;
     memcpy(successor->id, response->id, HASH_SIZE);
     strcpy(successor->ip, response->ip);
     successor->port = response->port;
-
 
     return successor;
 }

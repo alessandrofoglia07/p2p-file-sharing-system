@@ -5,7 +5,7 @@
 
 void create_ring(Node *n);
 
-void join_ring(const Node *n, const Node *n_prime);
+void join_ring(Node *n, const char *existing_ip, int existing_port);
 
 void stabilize(Node *n);
 

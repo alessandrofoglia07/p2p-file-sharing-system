@@ -1,14 +1,13 @@
 #include "file_entry.h"
 #include "protocol.h"
-#include "sha1.h"
 #include "stabilization.h"
-#include <stdio.h>
+#include "threads.h"
+#include "utils.h"
+#include "sha1.h"
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
+#include <stdio.h>
 #include <stddef.h>
-#include <threads.h>
 
 void store_file(Node *n, const char *filepath) {
     const char *filename = strrchr(filepath, '/');
@@ -26,6 +25,7 @@ void store_file(Node *n, const char *filepath) {
     if (memcmp(n->id, responsible_node->id, HASH_SIZE) == 0) {
         internal_store_file(n, filename, filepath, file_id, n->ip, n->port);
         printf("File '%s' stored on node %s:%d\n", filename, n->ip, n->port);
+        fflush(stdout);
     } else {
         Message msg;
         strcpy(msg.type, MSG_STORE_FILE);
@@ -39,6 +39,7 @@ void store_file(Node *n, const char *filepath) {
 
         printf("File '%s' forwarded to node %s:%d for storage\n", filename, responsible_node->ip,
                responsible_node->port);
+        fflush(stdout);
     }
 }
 

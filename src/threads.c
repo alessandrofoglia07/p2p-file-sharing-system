@@ -16,11 +16,9 @@ MessageQueue reply_queue;
 void *node_thread(void *arg) {
     Node *n = (Node *) arg;
     while (1) {
-        printf("\n");
         stabilize(n);
         fix_fingers(n, &(int){0});
         check_predecessor(n);
-        printf("\n");
         sleep(5);
     }
 }
@@ -31,11 +29,7 @@ void *listener_thread(void *arg) {
 
     while (1) {
         if (receive_message(node, &msg) > 0) {
-            if (strcmp(msg.type, MSG_REPLY) == 0) {
-                push_message(&reply_queue, &msg);
-            } else {
-                handle_requests(node, &msg);
-            }
+            handle_requests(node, &msg);
         }
     }
 }
@@ -68,7 +62,7 @@ void handle_user_commands(Node *node) {
             download_file(node, ip, port, filename);
         } else if (strcmp(command, "help") == 0 || strcmp(command, "?") == 0) {
             printf("Available commands:\n");
-            printf("  store <filename> - store a file in the network\n");
+            printf("  store <filepath> - store a file in the network\n");
             printf("  find <filename> - find a file in the network\n");
             printf("  download <ip:port> <filename> - download a file from the network\n");
             printf("  help/? - show this help message\n");
