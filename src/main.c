@@ -8,6 +8,8 @@
 #include <unistd.h>
 
 int main(const int argc, char *argv[]) {
+    init_queue(&reply_queue);
+
     if (argc < 3) {
         fprintf(stderr, "Usage: %s <IP> <PORT>\n", argv[0]);
         return EXIT_FAILURE;
@@ -20,34 +22,37 @@ int main(const int argc, char *argv[]) {
 
     Node *node = create_node(ip, port);
 
-    if (argc == 4) {
-        // join an existing ring
+    pthread_t listener_tid;
+
+    // Start listener thread (accept incoming connections) BEFORE joining the ring.
+    if (pthread_create(&listener_tid, NULL, listener_thread, node) != 0) {
+        perror("pthread_create");
+        return EXIT_FAILURE;
+    }
+
+    if (argc == 5) {
+        // Join an existing ring
         const char *existing_ip = argv[3];
         const int existing_port = atoi(argv[4]);
         Node *n_prime = create_node(existing_ip, existing_port);
         join_ring(node, n_prime);
         free(n_prime);
     } else {
-        // create a new ring
+        // Create a new ring
         create_ring(node);
     }
 
+    pthread_t node_tid;
 
-    printf("Node running at %s:%d\n", ip, port);
-
-    pthread_t node_tid, listener_tid;
-    // start node thread (stabilize, fix fingers, check predecessor)
+    // Start node thread (stabilize, fix fingers, check predecessor)
     if (pthread_create(&node_tid, NULL, node_thread, node) != 0) {
         perror("pthread_create");
         return EXIT_FAILURE;
     }
-    // start listener thread (accept incoming connections)
-    if (pthread_create(&listener_tid, NULL, listener_thread, node) != 0) {
-        perror("pthread_create");
-        return EXIT_FAILURE;
-    }
 
-    // handle user commands (blocking)
+    printf("Node running at %s:%d\n", ip, port);
+
+    // Handle user commands (blocking)
     handle_user_commands(node);
 
     printf("Exiting...\n");

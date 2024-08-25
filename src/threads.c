@@ -3,19 +3,24 @@
 #include "stabilization.h"
 #include "file_entry.h"
 #include <ctype.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/socket.h>
+
+MessageQueue reply_queue;
 
 void *node_thread(void *arg) {
     Node *n = (Node *) arg;
-
     while (1) {
+        printf("\n");
         stabilize(n);
         fix_fingers(n, &(int){0});
         check_predecessor(n);
+        printf("\n");
         sleep(5);
     }
 }
@@ -26,7 +31,11 @@ void *listener_thread(void *arg) {
 
     while (1) {
         if (receive_message(node, &msg) > 0) {
-            handle_requests(node, &msg);
+            if (strcmp(msg.type, MSG_REPLY) == 0) {
+                push_message(&reply_queue, &msg);
+            } else {
+                handle_requests(node, &msg);
+            }
         }
     }
 }

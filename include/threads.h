@@ -3,6 +3,8 @@
 
 #include "node.h"
 
+extern MessageQueue reply_queue;
+
 void *node_thread(void *arg);
 
 void *listener_thread(void *arg);

@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stddef.h>
+#include <threads.h>
 
 void store_file(Node *n, const char *filepath) {
     const char *filename = strrchr(filepath, '/');
@@ -88,8 +89,7 @@ FileEntry *find_file(Node *n, const char *filename) {
 
     free(responsible_node);
 
-    Message response;
-    receive_message(n, &response);
+    const Message *response = pop_message(&reply_queue);
 
     FileEntry *file_entry = (FileEntry *) malloc(sizeof(FileEntry));
     if (file_entry == NULL) {
@@ -97,11 +97,11 @@ FileEntry *find_file(Node *n, const char *filename) {
         exit(EXIT_FAILURE);
     }
 
-    memcpy(file_entry->id, response.id, HASH_SIZE);
-    strncpy(file_entry->filepath, response.data, sizeof(file_entry->filepath));
+    memcpy(file_entry->id, response->id, HASH_SIZE);
+    strncpy(file_entry->filepath, response->data, sizeof(file_entry->filepath));
     strncpy(file_entry->filename, filename, sizeof(file_entry->filename));
-    strcpy(file_entry->owner_ip, response.ip);
-    file_entry->owner_port = response.port;
+    strcpy(file_entry->owner_ip, response->ip);
+    file_entry->owner_port = response->port;
 
     return file_entry;
 }
@@ -122,18 +122,12 @@ void download_file(const Node *n, const char ip[16], const int port, const char 
         exit(EXIT_FAILURE);
     }
 
-    Message response;
-    int bytes_received;
+    Message *response;
 
-    while ((bytes_received = receive_message(n, &response)) > 0) {
-        fwrite(response.data, 1, bytes_received - offsetof(Message, data), file);
+    while ((response = pop_message(&reply_queue))) {
+        fwrite(response->data, 1, sizeof(response->data) - offsetof(Message, data), file);
     }
 
-    if (bytes_received < 0) {
-        perror("Receive failed");
-    } else {
-        printf("File downloaded successfully\n");
-    }
 
     fclose(file);
 }

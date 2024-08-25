@@ -4,6 +4,43 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+void init_queue(MessageQueue *queue) {
+    queue->head = queue->tail = NULL;
+    pthread_mutex_init(&queue->mutex, NULL);
+    pthread_cond_init(&queue->cond, NULL);
+}
+
+void push_message(MessageQueue *queue, const Message *msg) {
+    Message *new_msg = (Message *) malloc(sizeof(Message));
+    memcpy(new_msg, msg, sizeof(Message));
+    new_msg->next = NULL;
+
+    pthread_mutex_lock(&queue->mutex);
+    if (queue->tail == NULL) {
+        queue->head = queue->tail = new_msg;
+    } else {
+        queue->tail->next = (struct Message *) new_msg;
+        queue->tail = new_msg;
+    }
+    pthread_cond_signal(&queue->cond);
+    pthread_mutex_unlock(&queue->mutex);
+}
+
+Message *pop_message(MessageQueue *queue) {
+    pthread_mutex_lock(&queue->mutex);
+    while (queue->head == NULL) {
+        pthread_cond_wait(&queue->cond, &queue->mutex);
+    }
+    Message *msg = queue->head;
+    queue->head = (Message *) msg->next;
+    if (queue->head == NULL) {
+        queue->tail = NULL;
+    }
+    pthread_mutex_unlock(&queue->mutex);
+    return msg;
+}
 
 int send_message(const Node *sender, const char *receiver_ip, const int receiver_port, const Message *msg) {
     struct sockaddr_in receiver_addr = {0};

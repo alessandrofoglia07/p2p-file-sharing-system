@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <threads.h>
 
 // create new chord ring
 void create_ring(Node *n) {
@@ -29,13 +30,19 @@ void join_ring(const Node *n, const Node *n_prime) {
     // recieve the successor's info
     Message response;
     if (receive_message(n, &response) < 0) {
+    const Message *response = pop_message(&reply_queue);
+    if (response == NULL) {
         printf("Failed to join the ring at %s:%d\n", n_prime->ip, n_prime->port);
+        fflush(stdout);
         exit(EXIT_FAILURE);
     }
 
     memcpy(n->successor->id, response.id, HASH_SIZE);
     strcpy(n->successor->ip, response.ip);
     n->successor->port = response.port;
+    memcpy(n->successor->id, response->id, HASH_SIZE);
+    strcpy(n->successor->ip, response->ip);
+    n->successor->port = response->port;
 }
 
 /*
@@ -53,13 +60,12 @@ void stabilize(Node *n) {
 
     send_message(n, n->successor->ip, n->successor->port, &msg);
 
-    Message response;
-    receive_message(n, &response);
+    const Message *response = pop_message(&reply_queue);
 
     Node x;
-    memcpy(x.id, response.id, HASH_SIZE);
-    strcpy(x.ip, response.ip);
-    x.port = response.port;
+    memcpy(x.id, response->id, HASH_SIZE);
+    strcpy(x.ip, response->ip);
+    x.port = response->port;
 
     // if x is in the interval (n, successor), then update the successor
     if (is_in_interval(x.id, n->id, n->successor->id)) {
@@ -120,8 +126,13 @@ Node *find_successor(Node *n, const uint8_t *id) {
     if (memcmp(id, n->id, HASH_SIZE) > 0 && memcmp(id, n->successor->id, HASH_SIZE) <= 0) {
         return n->successor;
     }
-    // forward the query around the circle
+
     const Node *current = closest_preceding_node(n, id);
+
+    // Avoid sending message to itself
+    if (current == n) {
+        return n->successor;
+    }
 
     // send a FIND_SUCCESSOR message to the current node
     Message msg;
@@ -133,13 +144,16 @@ Node *find_successor(Node *n, const uint8_t *id) {
     send_message(n, current->ip, current->port, &msg);
 
     // receive the successor's info
-    Message response;
-    receive_message(n, &response);
+    const Message *response = pop_message(&reply_queue);
 
     Node *successor = n->successor;
     memcpy(successor->id, response.id, HASH_SIZE);
     strcpy(successor->ip, response.ip);
     successor->port = response.port;
+    memcpy(successor->id, response->id, HASH_SIZE);
+    strcpy(successor->ip, response->ip);
+    successor->port = response->port;
+
 
     return successor;
 }
