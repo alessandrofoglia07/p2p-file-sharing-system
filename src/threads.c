@@ -35,12 +35,13 @@ void *listener_thread(void *arg) {
 void handle_user_commands(Node *node) {
     while (1) {
         char command[256];
-        fgets(command, strlen(command), stdin);
+        fgets(command, sizeof(command), stdin);
+        command[strcspn(command, "\n")] = '\0'; // remove trailing newline
 
         if (strncmp(command, "store", 5) == 0) {
-            char filename[256];
-            sscanf(command, "store %s", filename);
-            store_file(node, filename);
+            char filepath[512];
+            sscanf(command, "store %s", filepath);
+            store_file(node, filepath);
         } else if (strncmp(command, "find", 4) == 0) {
             char filename[256];
             sscanf(command, "find %s", filename);
@@ -50,10 +51,17 @@ void handle_user_commands(Node *node) {
             } else {
                 printf("File '%s' not found\n", filename);
             }
+        } else if (strncmp(command, "download", 8) == 0) {
+            char ip[16];
+            int port;
+            char filename[256];
+            sscanf(command, "download %s:%d %s", ip, &port, filename);
+            download_file(node, ip, port, filename);
         } else if (strcmp(command, "help") == 0 || strcmp(command, "?") == 0) {
             printf("Available commands:\n");
             printf("  store <filename> - store a file in the network\n");
             printf("  find <filename> - find a file in the network\n");
+            printf("  download <ip:port> <filename> - download a file from the network\n");
             printf("  help/? - show this help message\n");
             printf("  exit - exit the program\n");
         } else if (strcmp(command, "exit") == 0) {
@@ -71,7 +79,7 @@ void handle_user_commands(Node *node) {
 
 void handle_exit(const int sig) {
     signal(sig, SIG_IGN);
-    printf("Do you really want to quit? [y/n] ");
+    printf("\nDo you really want to quit? [y/n] ");
     const char c = getchar();
     if (toupper(c) == 'Y') {
         printf("Exiting...\n");

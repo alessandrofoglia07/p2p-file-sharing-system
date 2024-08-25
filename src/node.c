@@ -120,7 +120,9 @@ void handle_requests(Node *n, const Message *msg) {
         }
     } else if (strcmp(msg->type, MSG_STORE_FILE) == 0) {
         // STORE_FILE request handling
-        internal_store_file(n, msg->data, msg->id, msg->ip, msg->port);
+        const char *filepath = msg->data;
+        const char *filename = strrchr(filepath, '/') + 1;
+        internal_store_file(n, filename, filepath, msg->id, msg->ip, msg->port);
     } else if (strcmp(msg->type, MSG_HEARTBEAT) == 0) {
         // HEARTBEAT request handling
         Message response;
@@ -140,6 +142,40 @@ void handle_requests(Node *n, const Message *msg) {
             response.port = n->predecessor->port;
 
             send_message(n, msg->ip, msg->port, &response);
+        }
+    } else if (strcmp(msg->type, MSG_FIND_FILE) == 0) {
+        // FIND_FILE request handling
+        const FileEntry *file = find_file(n, msg->data);
+        if (file) {
+            Message response;
+            strcpy(response.type, MSG_REPLY);
+            memcpy(response.id, file->id, HASH_SIZE);
+            strcpy(response.ip, file->owner_ip);
+            response.port = file->owner_port;
+            strncpy(response.data, file->filepath, sizeof(response.data) - 1);
+
+            send_message(n, msg->ip, msg->port, &response);
+        }
+    } else if (strcmp(msg->type, MSG_DOWNLOAD_FILE) == 0) {
+        // DOWNLOAD_FILE request handling
+        const char *filename = msg->data;
+        const FileEntry *file_entry = find_file(n, filename);
+        if (file_entry) {
+            FILE *file = fopen(file_entry->filepath, "rb");
+            if (file == NULL) {
+                perror("Failed to open file");
+                return;
+            }
+            Message response;
+            strcpy(response.type, MSG_REPLY);
+            memcpy(response.id, file_entry->id, HASH_SIZE);
+            strcpy(response.ip, file_entry->owner_ip);
+            response.port = file_entry->owner_port;
+
+            while (fread(response.data, 1, sizeof(response.data), file) > 0) {
+                send_message(n, msg->ip, msg->port, &response);
+            }
+            fclose(file);
         }
     }
 }

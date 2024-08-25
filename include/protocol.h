@@ -9,6 +9,8 @@
 #define MSG_HEARTBEAT "HEARTBEAT"
 #define MSG_STORE_FILE "STORE_FILE"
 #define MSG_REPLY "REPLY"
+#define MSG_DOWNLOAD_FILE "DOWNLOAD_FILE"
+#define MSG_FIND_FILE "FIND_FILE"
 
 #include <stdint.h>
 
