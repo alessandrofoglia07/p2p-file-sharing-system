@@ -52,7 +52,8 @@
 ## How To Use
 
 To clone and run this application, you'll need [Git](https://git-scm.com) and [CMake](https://cmake.org/)
-installed on your computer. From your command line:
+installed on your computer. Also, you'll need to install the [OpenSSL library](https://www.openssl.org/).
+From your command line:
 
 ```bash
 # Clone this repository
