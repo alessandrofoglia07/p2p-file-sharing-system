@@ -38,15 +38,7 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
     }
 
     // create a new node for the successor
-    Node *successor = (Node *) malloc(sizeof(Node));
-    if (successor == NULL) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
-
-    memcpy(successor->id, response->id, HASH_SIZE);
-    strcpy(successor->ip, response->ip);
-    successor->port = response->port;
+    Node *successor = create_node(response->ip, response->port);
 
     // set the new node's successor to the one returned by the existing node
     n->predecessor = NULL;
@@ -77,10 +69,7 @@ void stabilize(Node *n) {
     const Message *response = pop_message(&reply_queue);
 
     // x is the successor's predecessor
-    Node *x = (Node *) malloc(sizeof(Node));
-    memcpy(x->id, response->id, HASH_SIZE);
-    strcpy(x->ip, response->ip);
-    x->port = response->port;
+    Node *x = create_node(response->ip, response->port);
 
     // if x is in the interval (n, successor), then update the successor
     if (is_in_interval(x->id, n->id, n->successor->id)) {
@@ -143,9 +132,12 @@ Node *find_successor(Node *n, const uint8_t *id) {
     }
 
     const Node *current = closest_preceding_node(n, id);
+    return find_successor_remote(n, current, id);
+}
 
+Node *find_successor_remote(const Node *n, const Node *n0, const uint8_t *id) {
     // Avoid sending message to itself
-    if (current == n) {
+    if (n0 == n) {
         return n->successor;
     }
 
@@ -156,7 +148,7 @@ Node *find_successor(Node *n, const uint8_t *id) {
     strcpy(msg.ip, n->ip);
     msg.port = n->port;
 
-    send_message(n, current->ip, current->port, &msg);
+    send_message(n, n0->ip, n0->port, &msg);
 
     // receive the successor's info
     const Message *response = pop_message(&reply_queue);

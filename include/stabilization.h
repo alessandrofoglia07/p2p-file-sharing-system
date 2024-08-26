@@ -17,6 +17,8 @@ void check_predecessor(Node *n);
 
 Node *find_successor(Node *n, const uint8_t *id);
 
+Node *find_successor_remote(const Node *n, const Node *n0, const uint8_t *id);
+
 Node *closest_preceding_node(Node *n, const uint8_t *id);
 
 #endif //STABILIZATION_H

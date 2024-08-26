@@ -21,6 +21,7 @@ int main(const int argc, char *argv[]) {
     const int port = atoi(argv[2]);
 
     Node *node = create_node(ip, port);
+    node_bind(node);
 
     pthread_t listener_tid;
 

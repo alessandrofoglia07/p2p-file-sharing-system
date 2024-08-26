@@ -37,7 +37,7 @@ void store_file(Node *n, const char *filepath) {
 
         send_message(n, responsible_node->ip, responsible_node->port, &msg);
 
-        printf("File '%s' forwarded to node %s:%d for storage\n", filename, responsible_node->ip,
+        printf("File '%s' data forwarded to node %s:%d.\n", filename, responsible_node->ip,
                responsible_node->port);
         fflush(stdout);
     }
@@ -59,6 +59,8 @@ void internal_store_file(Node *n, const char *filename, const char *filepath, co
 
     new_entry->next = n->files;
     n->files = new_entry;
+    printf("File %s stored locally.\n", filename);
+    fflush(stdout);
 }
 
 FileEntry *find_file(Node *n, const char *filename) {
@@ -128,7 +130,6 @@ void download_file(const Node *n, const char ip[16], const int port, const char 
     while ((response = pop_message(&reply_queue))) {
         fwrite(response->data, 1, sizeof(response->data) - offsetof(Message, data), file);
     }
-
 
     fclose(file);
 }

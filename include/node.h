@@ -20,6 +20,8 @@ typedef struct Node {
 
 Node *create_node(const char *ip, int port);
 
+void node_bind(Node *n);
+
 void cleanup_node(Node *n);
 
 void handle_requests(Node *n, const Message *msg);

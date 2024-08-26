@@ -27,32 +27,34 @@ Node *create_node(const char *ip, const int port) {
     for (int i = 0; i < M; i++) {
         node->finger[i] = node; // initially, all fingers point to the node itself
     }
-    if ((node->sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        free(node);
+    return node;
+}
+
+void node_bind(Node *n) {
+    if ((n->sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        free(n);
         perror("socket");
         exit(EXIT_FAILURE);
     }
 
-    if (setsockopt(node->sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
+    if (setsockopt(n->sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
         perror("setsockopt");
-        close(node->sockfd);
-        free(node);
+        close(n->sockfd);
+        free(n);
         exit(EXIT_FAILURE);
     }
 
     struct sockaddr_in addr = {0};
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip);
+    addr.sin_port = htons(n->port);
+    addr.sin_addr.s_addr = inet_addr(n->ip);
 
-    if (bind(node->sockfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+    if (bind(n->sockfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
         perror("bind");
-        close(node->sockfd);
-        free(node);
+        close(n->sockfd);
+        free(n);
         exit(EXIT_FAILURE);
     }
-
-    return node;
 }
 
 void cleanup_node(Node *n) {
@@ -73,14 +75,7 @@ void handle_requests(Node *n, const Message *msg) {
         push_message(&reply_queue, msg);
     } else if (strcmp(msg->type, MSG_JOIN) == 0) {
         // JOIN request handling
-        Node *new_node = (Node *) malloc(sizeof(Node));
-        if (new_node == NULL) {
-            perror("malloc");
-            exit(EXIT_FAILURE);
-        }
-        memcpy(new_node->id, msg->id, HASH_SIZE);
-        strcpy(new_node->ip, msg->ip);
-        new_node->port = msg->port;
+        Node *new_node = create_node(msg->ip, msg->port);
 
         // find successor of new node
         const Node *successor = find_successor(n, new_node->id);
@@ -106,31 +101,6 @@ void handle_requests(Node *n, const Message *msg) {
         response.port = successor->port;
 
         send_message(n, msg->ip, msg->port, &response);
-    } else if (strcmp(msg->type, MSG_NOTIFY) == 0) {
-        // NOTIFY request handling
-        Node *new_predecessor = (Node *) malloc(sizeof(Node));
-        if (new_predecessor == NULL) {
-            perror("malloc");
-            exit(EXIT_FAILURE);
-        }
-        memcpy(new_predecessor->id, msg->id, HASH_SIZE);
-        strcpy(new_predecessor->ip, msg->ip);
-        new_predecessor->port = msg->port;
-
-        // update predecessor if necessary
-        if (n->predecessor == NULL || is_in_interval(new_predecessor->id, n->predecessor->id, n->id)) {
-            n->predecessor = new_predecessor;
-        } else {
-            free(new_predecessor);
-        }
-    } else if (strcmp(msg->type, MSG_STORE_FILE) == 0) {
-        // STORE_FILE request handling
-        const char *filepath = msg->data;
-        const char *filename = strrchr(filepath, '/') + 1;
-        internal_store_file(n, filename, filepath, msg->id, msg->ip, msg->port);
-    } else if (strcmp(msg->type, MSG_HEARTBEAT) == 0) {
-        // HEARTBEAT request handling
-        // do nothing, just to keep the connection alive
     } else if (strcmp(msg->type, MSG_STABILIZE) == 0) {
         // STABILIZE request handling
         if (n->predecessor != NULL) {
@@ -143,17 +113,38 @@ void handle_requests(Node *n, const Message *msg) {
             // return predecessor info to get verified
             send_message(n, msg->ip, msg->port, &response);
         }
+    } else if (strcmp(msg->type, MSG_NOTIFY) == 0) {
+        // NOTIFY request handling
+        Node *new_predecessor = create_node(msg->ip, msg->port);
+
+        // update predecessor if necessary
+        if (n->predecessor == NULL || is_in_interval(new_predecessor->id, n->predecessor->id, n->id)) {
+            n->predecessor = new_predecessor;
+        } else {
+            free(new_predecessor);
+        }
+    } else if (strcmp(msg->type, MSG_HEARTBEAT) == 0) {
+        // HEARTBEAT request handling
+        // do nothing, just to keep the connection alive
+    } else if (strcmp(msg->type, MSG_STORE_FILE) == 0) {
+        // STORE_FILE request handling
+        const char *filepath = msg->data;
+        const char *filename = strrchr(filepath, '/') + 1;
+        internal_store_file(n, filename, filepath, msg->id, msg->ip, msg->port);
     } else if (strcmp(msg->type, MSG_FIND_FILE) == 0) {
         // FIND_FILE request handling
         const FileEntry *file = find_file(n, msg->data);
+        Message response;
+        strcpy(response.type, MSG_REPLY);
         if (file) {
-            Message response;
-            strcpy(response.type, MSG_REPLY);
             memcpy(response.id, file->id, HASH_SIZE);
             strcpy(response.ip, file->owner_ip);
             response.port = file->owner_port;
             strncpy(response.data, file->filepath, sizeof(response.data) - 1);
-
+            send_message(n, msg->ip, msg->port, &response);
+        } else {
+            strcpy(response.ip, n->ip);
+            response.port = n->port;
             send_message(n, msg->ip, msg->port, &response);
         }
     } else if (strcmp(msg->type, MSG_DOWNLOAD_FILE) == 0) {
