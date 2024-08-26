@@ -14,11 +14,12 @@
 
 #include <stdint.h>
 #include <pthread.h>
+#include <sha1.h>
 
 // simple message protocol
 typedef struct {
     char type[16]; // message type (e.g. JOIN, NOTIFY, FIND_SUCCESSOR, STABILIZE, REPLY)
-    uint8_t id[20]; // ID involved (e.g. the ID to find a successor for)
+    uint8_t id[HASH_SIZE]; // ID involved (e.g. the ID to find a successor for)
     char ip[16]; // IP address of the sender
     int port; // port of the sender
     // additional data (e.g. filename)
@@ -45,7 +46,10 @@ void push_message(MessageQueue *queue, const Message *msg);
 
 Message *pop_message(MessageQueue *queue);
 
-int send_message(const Node *sender, const char *receiver_ip, int receiver_port, const Message *msg);
+Message *create_message(const char *type, const uint8_t id[HASH_SIZE], const char *ip, const int port,
+                        const char *data);
+
+int send_message(const Node *sender, const char *receiver_ip, int receiver_port, Message *msg);
 
 int receive_message(const Node *n, Message *msg);
 

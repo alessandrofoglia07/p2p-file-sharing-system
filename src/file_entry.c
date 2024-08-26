@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stddef.h>
 
 void store_file(Node *n, const char *filepath) {
@@ -27,15 +28,9 @@ void store_file(Node *n, const char *filepath) {
         printf("File '%s' stored on node %s:%d\n", filename, n->ip, n->port);
         fflush(stdout);
     } else {
-        Message msg;
-        strcpy(msg.type, MSG_STORE_FILE);
-        memcpy(msg.id, file_id, HASH_SIZE);
-        strncpy(msg.ip, n->ip, sizeof(msg.ip));
-        msg.port = n->port;
-        strncpy(msg.data, filepath, sizeof(msg.data) - 1);
-        msg.data[sizeof(msg.data) - 1] = '\0';
+        Message *msg = create_message(MSG_STORE_FILE, file_id, n->ip, n->port, filepath);
 
-        send_message(n, responsible_node->ip, responsible_node->port, &msg);
+        send_message(n, responsible_node->ip, responsible_node->port, msg);
 
         printf("File '%s' data forwarded to node %s:%d.\n", filename, responsible_node->ip,
                responsible_node->port);
@@ -80,19 +75,17 @@ FileEntry *find_file(Node *n, const char *filename) {
         return NULL; // file not found locally
     }
 
-    Message msg;
-    strcpy(msg.type, MSG_FIND_FILE);
-    memcpy(msg.id, file_id, HASH_SIZE);
-    strncpy(msg.ip, n->ip, sizeof(msg.ip));
-    msg.port = n->port;
-    strncpy(msg.data, filename, sizeof(msg.data) - 1);
-    msg.data[sizeof(msg.data) - 1] = '\0';
+    Message *msg = create_message(MSG_FIND_FILE, file_id, n->ip, n->port, filename);
 
-    send_message(n, responsible_node->ip, responsible_node->port, &msg);
+    send_message(n, responsible_node->ip, responsible_node->port, msg);
 
     free(responsible_node);
 
     const Message *response = pop_message(&reply_queue);
+
+    if (strcmp(response->data, "File not found") == 0) {
+        return NULL; // file not found in the network
+    }
 
     FileEntry *file_entry = (FileEntry *) malloc(sizeof(FileEntry));
     if (file_entry == NULL) {
@@ -110,14 +103,9 @@ FileEntry *find_file(Node *n, const char *filename) {
 }
 
 void download_file(const Node *n, const char ip[16], const int port, const char *filename) {
-    Message msg;
-    strcpy(msg.type, MSG_DOWNLOAD_FILE);
-    strcpy(msg.ip, n->ip);
-    msg.port = n->port;
-    strncpy(msg.data, filename, sizeof(msg.data) - 1);
-    msg.data[sizeof(msg.data) - 1] = '\0';
+    Message *msg = create_message(MSG_DOWNLOAD_FILE, n->id, n->ip, n->port, filename);
 
-    send_message(n, ip, port, &msg);
+    send_message(n, ip, port, msg);
 
     FILE *file = fopen(filename, "wb");
     if (file == NULL) {
