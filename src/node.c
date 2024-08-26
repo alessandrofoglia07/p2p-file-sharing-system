@@ -81,9 +81,14 @@ void handle_requests(Node *n, const Message *msg) {
         const Node *successor = find_successor(n, new_node->id);
 
         // reply with successor info
-        Message *response = create_message(MSG_REPLY, successor->id, successor->ip, successor->port, "");
+        Message response;
+        strcpy(response.type, MSG_REPLY);
+        memcpy(response.id, successor->id, HASH_SIZE);
+        strcpy(response.ip, successor->ip);
+        response.port = successor->port;
+        strcpy(response.data, "");
 
-        send_message(n, msg->ip, msg->port, response);
+        send_message(n, msg->ip, msg->port, &response);
 
         free(new_node);
     } else if (strcmp(msg->type, MSG_FIND_SUCCESSOR) == 0) {
@@ -91,17 +96,26 @@ void handle_requests(Node *n, const Message *msg) {
         const Node *successor = find_successor(n, msg->id);
 
         // reply with successor info
-        Message *response = create_message(MSG_REPLY, successor->id, successor->ip, successor->port, "");
+        Message response;
+        strcpy(response.type, MSG_REPLY);
+        memcpy(response.id, successor->id, HASH_SIZE);
+        strcpy(response.ip, successor->ip);
+        response.port = successor->port;
+        strcpy(response.data, "");
 
-        send_message(n, msg->ip, msg->port, response);
+        send_message(n, msg->ip, msg->port, &response);
     } else if (strcmp(msg->type, MSG_STABILIZE) == 0) {
         // STABILIZE request handling
         if (n->predecessor != NULL) {
-            Message *response = create_message(MSG_REPLY, n->predecessor->id, n->predecessor->ip,
-                                               n->predecessor->port, "");
+            Message response;
+            strcpy(response.type, MSG_REPLY);
+            memcpy(response.id, n->predecessor->id, HASH_SIZE);
+            strcpy(response.ip, n->predecessor->ip);
+            response.port = n->predecessor->port;
+            strcpy(response.data, "");
 
             // return predecessor info to get verified
-            send_message(n, msg->ip, msg->port, response);
+            send_message(n, msg->ip, msg->port, &response);
         }
     } else if (strcmp(msg->type, MSG_NOTIFY) == 0) {
         // NOTIFY request handling
@@ -125,12 +139,22 @@ void handle_requests(Node *n, const Message *msg) {
         // FIND_FILE request handling
         const FileEntry *file = find_file(n, msg->data);
         if (file) {
-            Message *response = create_message(MSG_REPLY, file->id, file->owner_ip, file->owner_port,
-                                               file->filepath);
-            send_message(n, msg->ip, msg->port, response);
+            Message response;
+            strcpy(response.type, MSG_REPLY);
+            memcpy(response.id, file->id, HASH_SIZE);
+            strcpy(response.ip, file->owner_ip);
+            response.port = file->owner_port;
+            strcpy(response.data, file->filepath);
+
+            send_message(n, msg->ip, msg->port, &response);
         } else {
-            Message *response = create_message(MSG_REPLY, NULL, msg->ip, msg->port, "File not found");
-            send_message(n, msg->ip, msg->port, response);
+            Message response;
+            strcpy(response.type, MSG_REPLY);
+            memset(response.id, 0, HASH_SIZE);
+            strcpy(response.ip, "");
+            response.port = 0;
+            strcpy(response.data, "File not found");
+            send_message(n, msg->ip, msg->port, &response);
         }
     } else if (strcmp(msg->type, MSG_DOWNLOAD_FILE) == 0) {
         // DOWNLOAD_FILE request handling
@@ -142,11 +166,15 @@ void handle_requests(Node *n, const Message *msg) {
                 perror("Failed to open file");
                 return;
             }
-            Message *response = create_message(MSG_REPLY, file_entry->id, file_entry->owner_ip, file_entry->owner_port,
-                                               0);
+            Message response;
+            strcpy(response.type, MSG_REPLY);
+            memcpy(response.id, file_entry->id, HASH_SIZE);
+            strcpy(response.ip, file_entry->owner_ip);
+            response.port = file_entry->owner_port;
+            strcpy(response.data, "");
 
-            while (fread(response->data, 1, sizeof(response->data), file) > 0) {
-                send_message(n, msg->ip, msg->port, response);
+            while (fread(response.data, 1, sizeof(response.data), file) > 0) {
+                send_message(n, msg->ip, msg->port, &response);
             }
             fclose(file);
         }

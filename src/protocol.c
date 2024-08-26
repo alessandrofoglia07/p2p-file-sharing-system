@@ -1,7 +1,4 @@
 #include "protocol.h"
-
-#include <sha1.h>
-
 #include "node.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -48,20 +45,7 @@ Message *pop_message(MessageQueue *queue) {
     return message;
 }
 
-Message *create_message(const char *type, const uint8_t id[HASH_SIZE], const char *ip, const int port,
-                        const char *data) {
-    Message *msg = (Message *) malloc(sizeof(Message));
-    strcpy(msg->type, type);
-    memcpy(msg->id, id, HASH_SIZE);
-    strcpy(msg->ip, ip);
-    msg->port = port;
-    strncpy(msg->data, data, sizeof(msg->data) - 1);
-    msg->data[sizeof(msg->data) - 1] = '\0';
-
-    return msg;
-}
-
-int send_message(const Node *sender, const char *receiver_ip, const int receiver_port, Message *msg) {
+int send_message(const Node *sender, const char *receiver_ip, const int receiver_port, const Message *msg) {
     struct sockaddr_in receiver_addr = {0};
     receiver_addr.sin_family = AF_INET;
     receiver_addr.sin_port = htons(receiver_port);
@@ -74,12 +58,8 @@ int send_message(const Node *sender, const char *receiver_ip, const int receiver
     // Use MSG_CONFIRM if the message type is MSG_REPLY
     const int flags = strcmp(msg->type, MSG_REPLY) == 0 ? MSG_CONFIRM : 0;
 
-    const int result = sendto(sender->sockfd, buffer, sizeof(Message), flags,
-                              (struct sockaddr *) &receiver_addr, sizeof(receiver_addr));
-
-    free(msg);
-
-    return result;
+    return sendto(sender->sockfd, buffer, sizeof(Message), flags,
+                  (struct sockaddr *) &receiver_addr, sizeof(receiver_addr));
 }
 
 int receive_message(const Node *n, Message *msg) {

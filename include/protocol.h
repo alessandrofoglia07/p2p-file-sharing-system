@@ -46,10 +46,7 @@ void push_message(MessageQueue *queue, const Message *msg);
 
 Message *pop_message(MessageQueue *queue);
 
-Message *create_message(const char *type, const uint8_t id[HASH_SIZE], const char *ip, const int port,
-                        const char *data);
-
-int send_message(const Node *sender, const char *receiver_ip, int receiver_port, Message *msg);
+int send_message(const Node *sender, const char *receiver_ip, int receiver_port, const Message *msg);
 
 int receive_message(const Node *n, Message *msg);
 
