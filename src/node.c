@@ -117,6 +117,7 @@ void handle_requests(Node *n, const Message *msg) {
         strcpy(new_predecessor->ip, msg->ip);
         new_predecessor->port = msg->port;
 
+        // update predecessor if necessary
         if (n->predecessor == NULL || is_in_interval(new_predecessor->id, n->predecessor->id, n->id)) {
             n->predecessor = new_predecessor;
         } else {
@@ -129,13 +130,7 @@ void handle_requests(Node *n, const Message *msg) {
         internal_store_file(n, filename, filepath, msg->id, msg->ip, msg->port);
     } else if (strcmp(msg->type, MSG_HEARTBEAT) == 0) {
         // HEARTBEAT request handling
-        Message response;
-        strcpy(response.type, MSG_REPLY);
-        memcpy(response.id, n->id, HASH_SIZE);
-        strcpy(response.ip, n->ip);
-        response.port = n->port;
-
-        send_message(n, msg->ip, msg->port, &response);
+        // do nothing, just to keep the connection alive
     } else if (strcmp(msg->type, MSG_STABILIZE) == 0) {
         // STABILIZE request handling
         if (n->predecessor != NULL) {
@@ -145,6 +140,7 @@ void handle_requests(Node *n, const Message *msg) {
             strcpy(response.ip, n->predecessor->ip);
             response.port = n->predecessor->port;
 
+            // return predecessor info to get verified
             send_message(n, msg->ip, msg->port, &response);
         }
     } else if (strcmp(msg->type, MSG_FIND_FILE) == 0) {

@@ -20,6 +20,7 @@ void create_ring(Node *n) {
 
 // join an existing chord ring
 void join_ring(Node *n, const char *existing_ip, const int existing_port) {
+    // send a JOIN message to the existing node
     Message msg;
     strcpy(msg.type, MSG_JOIN);
     memcpy(msg.id, n->id, HASH_SIZE);
@@ -28,6 +29,7 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
 
     send_message(n, existing_ip, existing_port, &msg);
 
+    // the existing node will respond with the new node's successor
     const Message *response = pop_message(&reply_queue);
     if (response == NULL) {
         printf("Failed to join the ring at %s:%d\n", existing_ip, existing_port);
@@ -35,6 +37,7 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
         exit(EXIT_FAILURE);
     }
 
+    // create a new node for the successor
     Node *successor = (Node *) malloc(sizeof(Node));
     if (successor == NULL) {
         perror("malloc");
@@ -45,6 +48,8 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
     strcpy(successor->ip, response->ip);
     successor->port = response->port;
 
+    // set the new node's successor to the one returned by the existing node
+    n->predecessor = NULL;
     n->successor = successor;
 
     printf("Joined the ring at %s:%d\n", n->successor->ip, n->successor->port);
@@ -52,9 +57,11 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
 }
 
 /*
- * Called periodically. n asks the successor about its predecessor,
- * verifies if n's immediate successor is consistent, and tells the
- * successor about n.
+ * Called periodically. Asks the successor for its predecessor,
+ * verifies it to be itself. If not, its verified that the new
+ * node lies between itself and successor. Therefore, the new
+ * node is set as the new successor. The new node is also notified
+ * of its new predecessor.
  */
 void stabilize(Node *n) {
     // send a STABILIZE message to the successor
@@ -66,21 +73,21 @@ void stabilize(Node *n) {
 
     send_message(n, n->successor->ip, n->successor->port, &msg);
 
+    // receive the successor's predecessor to verify
     const Message *response = pop_message(&reply_queue);
 
-    Node x;
-    memcpy(x.id, response->id, HASH_SIZE);
-    strcpy(x.ip, response->ip);
-    x.port = response->port;
+    // x is the successor's predecessor
+    Node *x = (Node *) malloc(sizeof(Node));
+    memcpy(x->id, response->id, HASH_SIZE);
+    strcpy(x->ip, response->ip);
+    x->port = response->port;
 
     // if x is in the interval (n, successor), then update the successor
-    if (is_in_interval(x.id, n->id, n->successor->id)) {
-        memcpy(n->successor->id, x.id, HASH_SIZE);
-        strcpy(n->successor->ip, x.ip);
-        n->successor->port = x.port;
+    if (is_in_interval(x->id, n->id, n->successor->id)) {
+        n->successor = x;
     }
 
-    // notify the successor
+    // notify the new successor to update its predecessor
     notify(n->successor, n);
 }
 
@@ -92,6 +99,7 @@ void notify(Node *n, Node *n_prime) {
     strcpy(msg.ip, n_prime->ip);
     msg.port = n_prime->port;
 
+    // notify that n_prime might be its new predecessor
     send_message(n_prime, n->ip, n->port, &msg);
 
     if (n->predecessor == NULL || is_in_interval(n->id, n->predecessor->id, n->id)) {
@@ -122,6 +130,7 @@ void check_predecessor(Node *n) {
     strcpy(msg.ip, n->ip);
     msg.port = n->port;
 
+    // if the predecessor does not respond, it has failed -> set it to NULL
     if (send_message(n, n->predecessor->ip, n->predecessor->port, &msg) < 0) {
         n->predecessor = NULL;
     }
@@ -162,6 +171,7 @@ Node *find_successor(Node *n, const uint8_t *id) {
 
 // search the local finger table for the highest predecessor of id
 Node *closest_preceding_node(Node *n, const uint8_t *id) {
+    // search the finger table in reverse order to find the closest node
     for (int i = M - 1; i >= 0; i--) {
         if (is_in_interval(n->finger[i]->id, n->id, id)) {
             return n->finger[i];
