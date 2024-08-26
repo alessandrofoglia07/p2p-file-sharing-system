@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <stddef.h>
 
-void store_file(Node *n, const char *filepath) {
+int store_file(Node *n, const char *filepath) {
     const char *filename = strrchr(filepath, '/');
     if (filename == NULL) {
         filename = (char *) filepath;
@@ -24,26 +24,20 @@ void store_file(Node *n, const char *filepath) {
     Node *responsible_node = find_successor(n, file_id);
 
     if (memcmp(n->id, responsible_node->id, HASH_SIZE) == 0) {
-        internal_store_file(n, filename, filepath, file_id, n->ip, n->port);
-        printf("File '%s' stored on node %s:%d\n", filename, n->ip, n->port);
-        fflush(stdout);
-    } else {
-        Message *msg = create_message(MSG_STORE_FILE, file_id, n->ip, n->port, filepath);
-
-        send_message(n, responsible_node->ip, responsible_node->port, msg);
-
-        printf("File '%s' data forwarded to node %s:%d.\n", filename, responsible_node->ip,
-               responsible_node->port);
-        fflush(stdout);
+        return internal_store_file(n, filename, filepath, file_id, n->ip, n->port);
     }
+    Message *msg = create_message(MSG_STORE_FILE, file_id, n->ip, n->port, filepath);
+    const int result = send_message(n, responsible_node->ip, responsible_node->port, msg);
+    free(responsible_node);
+    return result;
 }
 
-void internal_store_file(Node *n, const char *filename, const char *filepath, const uint8_t *file_id,
-                         const char *uploader_ip, const int uploader_port) {
+int internal_store_file(Node *n, const char *filename, const char *filepath, const uint8_t *file_id,
+                        const char *uploader_ip, const int uploader_port) {
     FileEntry *new_entry = (FileEntry *) malloc(sizeof(FileEntry));
     if (new_entry == NULL) {
         perror("malloc");
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
     memcpy(new_entry->id, file_id, HASH_SIZE);
@@ -54,8 +48,8 @@ void internal_store_file(Node *n, const char *filename, const char *filepath, co
 
     new_entry->next = n->files;
     n->files = new_entry;
-    printf("File %s stored locally.\n", filename);
-    fflush(stdout);
+
+    return 0;
 }
 
 FileEntry *find_file(Node *n, const char *filename) {

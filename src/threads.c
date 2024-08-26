@@ -44,10 +44,22 @@ void handle_user_commands(Node *node) {
         if (strncmp(command, "store", 5) == 0) {
             char filepath[512];
             sscanf(command, "store %s", filepath);
-            store_file(node, filepath);
+            if (strlen(filepath) == 0) {
+                printf("Invalid filepath\n");
+                continue;
+            }
+            if (store_file(node, filepath) == 0) {
+                printf("File stored successfully\n");
+            } else {
+                printf("Failed to store file\n");
+            }
         } else if (strncmp(command, "find", 4) == 0) {
             char filename[256];
             sscanf(command, "find %s", filename);
+            if (strlen(filename) == 0) {
+                printf("Invalid filename\n");
+                continue;
+            }
             FileEntry *file = find_file(node, filename);
             if (file) {
                 printf("File '%s' found at %s:%d\n", filename, file->owner_ip, file->owner_port);
@@ -59,6 +71,10 @@ void handle_user_commands(Node *node) {
             int port;
             char filename[256];
             sscanf(command, "download %s:%d %s", ip, &port, filename);
+            if (strlen(ip) == 0 || strlen(filename) == 0) {
+                printf("Invalid command\n");
+                continue;
+            }
             download_file(node, ip, port, filename);
         } else if (strcmp(command, "help") == 0 || strcmp(command, "?") == 0) {
             printf("Available commands:\n");

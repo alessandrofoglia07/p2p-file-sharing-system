@@ -81,7 +81,7 @@ void handle_requests(Node *n, const Message *msg) {
         const Node *successor = find_successor(n, new_node->id);
 
         // reply with successor info
-        Message *response = create_message(MSG_REPLY, successor->id, successor->ip, successor->port, NULL);
+        Message *response = create_message(MSG_REPLY, successor->id, successor->ip, successor->port, "");
 
         send_message(n, msg->ip, msg->port, response);
 
@@ -91,14 +91,14 @@ void handle_requests(Node *n, const Message *msg) {
         const Node *successor = find_successor(n, msg->id);
 
         // reply with successor info
-        Message *response = create_message(MSG_REPLY, successor->id, successor->ip, successor->port, NULL);
+        Message *response = create_message(MSG_REPLY, successor->id, successor->ip, successor->port, "");
 
         send_message(n, msg->ip, msg->port, response);
     } else if (strcmp(msg->type, MSG_STABILIZE) == 0) {
         // STABILIZE request handling
         if (n->predecessor != NULL) {
             Message *response = create_message(MSG_REPLY, n->predecessor->id, n->predecessor->ip,
-                                               n->predecessor->port, NULL);
+                                               n->predecessor->port, "");
 
             // return predecessor info to get verified
             send_message(n, msg->ip, msg->port, response);
@@ -145,7 +145,7 @@ void handle_requests(Node *n, const Message *msg) {
             Message *response = create_message(MSG_REPLY, file_entry->id, file_entry->owner_ip, file_entry->owner_port,
                                                0);
 
-            while (fread(response.data, 1, sizeof(response.data), file) > 0) {
+            while (fread(response->data, 1, sizeof(response->data), file) > 0) {
                 send_message(n, msg->ip, msg->port, response);
             }
             fclose(file);

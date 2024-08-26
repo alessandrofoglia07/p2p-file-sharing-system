@@ -14,10 +14,10 @@ typedef struct FileEntry {
 
 #include "node.h"
 
-void store_file(Node *n, const char *filepath);
+int store_file(Node *n, const char *filepath);
 
-void internal_store_file(Node *n, const char *filename, const char *filepath, const uint8_t *file_id,
-                         const char *uploader_ip, int uploader_port);
+int internal_store_file(Node *n, const char *filename, const char *filepath, const uint8_t *file_id,
+                        const char *uploader_ip, int uploader_port);
 
 FileEntry *find_file(Node *n, const char *filename);
 

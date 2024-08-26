@@ -15,7 +15,6 @@ void create_ring(Node *n) {
     n->predecessor = NULL;
     n->successor = n;
     printf("New ring created.\n");
-    fflush(stdout);
 }
 
 // join an existing chord ring
@@ -41,7 +40,6 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
     n->successor = successor;
 
     printf("Joined the ring at %s:%d\n", n->successor->ip, n->successor->port);
-    fflush(stdout);
 }
 
 /*

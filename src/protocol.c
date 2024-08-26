@@ -28,7 +28,7 @@ void push_message(MessageQueue *queue, const Message *msg) {
         queue->tail->next = new_msg;
         queue->tail = new_msg;
     }
-    pthread_cond_signal(&queue->cond);
+    pthread_cond_broadcast(&queue->cond);
     pthread_mutex_unlock(&queue->mutex);
 }
 
