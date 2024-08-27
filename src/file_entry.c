@@ -7,9 +7,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stddef.h>
 
 int store_file(Node *n, const char *filepath) {
+    // check if file exists
+    if (access(filepath, F_OK) < 0) {
+        return -1;
+    }
+
     const char *filename = strrchr(filepath, '/');
     if (filename == NULL) {
         filename = (char *) filepath;
@@ -97,9 +103,8 @@ FileEntry *find_file(Node *n, const char *filename) {
         return NULL; // file not found locally
     }
 
-    const uint32_t req_id = generate_id();
     Message msg;
-    msg.request_id = req_id;
+    msg.request_id = generate_id();
     strcpy(msg.type, MSG_FIND_FILE);
     memcpy(msg.id, file_id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
@@ -108,7 +113,7 @@ FileEntry *find_file(Node *n, const char *filename) {
 
     send_message(n, responsible_node->ip, responsible_node->port, &msg);
 
-    const Message *response = pop_message(&reply_queue, req_id);
+    const Message *response = pop_message(&reply_queue, msg.request_id);
 
     if (response == NULL || strcmp(response->data, "File not found") == 0) {
         return NULL; // file not found in the network or timeout occurred
@@ -141,9 +146,8 @@ FileEntry *find_uploaded_file(const Node *n, const char *filepath) {
 }
 
 int download_file(const Node *n, const FileEntry *file_entry) {
-    const uint32_t req_id = generate_id();
     Message msg;
-    msg.request_id = req_id;
+    msg.request_id = generate_id();
     strcpy(msg.type, MSG_DOWNLOAD_FILE);
     memcpy(msg.id, n->id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
@@ -162,7 +166,7 @@ int download_file(const Node *n, const FileEntry *file_entry) {
 
     Message *response;
 
-    while ((response = pop_message(&reply_queue, req_id))) {
+    while ((response = pop_message(&reply_queue, msg.request_id))) {
         fwrite(response->data, 1, sizeof(response->data) - offsetof(Message, data), file);
     }
 

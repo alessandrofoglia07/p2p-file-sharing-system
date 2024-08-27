@@ -82,10 +82,7 @@ void handle_user_commands(Node *node) {
                     printf("Download canceled.\n");
                 }
             }
-        } else if (strncmp(command, "download", 8) == 0) {
-            char ip[16];
-            int port;
-        } else if (strcmp(command, "lslocal") == 0) {
+        } else if (strcmp(command, "uploaded") == 0) {
             FileEntry *cur = node->uploaded_files;
             if (cur == NULL) {
                 printf("No files uploaded yet.\n");
@@ -109,6 +106,7 @@ void handle_user_commands(Node *node) {
             printf("  find <filename> - find a file in the network\n");
             printf("  download <ip:port> <filename> - download a file from the network\n");
             printf("  lslocal - list all files uploaded by the user\n");
+            printf("  uploaded - list all files uploaded by the user\n");
             printf("  help/? - show this help message\n");
             printf("  exit - exit the program\n");
         } else if (strcmp(command, "exit") == 0) {
