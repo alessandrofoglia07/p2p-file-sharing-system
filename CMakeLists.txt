@@ -22,3 +22,4 @@ add_executable(p2p_file_sharing_system ${RESOURCES})
 
 target_link_libraries(p2p_file_sharing_system pthread)
 target_link_libraries(p2p_file_sharing_system crypto)
+target_link_libraries(p2p_file_sharing_system uuid)

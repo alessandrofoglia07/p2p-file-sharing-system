@@ -29,21 +29,69 @@ void push_message(MessageQueue *queue, const Message *msg) {
     pthread_mutex_unlock(&queue->mutex);
 }
 
-Message *pop_message(MessageQueue *queue) {
+Message *pop_message(MessageQueue *queue, uint32_t request_id) {
     pthread_mutex_lock(&queue->mutex);
-    while (queue->head == NULL) {
+
+    MessageNode *prev = NULL;
+    MessageNode *msg_node = queue->head;
+
+    // Search for a message with the matching request_id
+    while (msg_node != NULL) {
+        if (msg_node->msg->request_id == request_id) {
+            // If it's the head, move the head pointer
+            if (msg_node == queue->head) {
+                queue->head = msg_node->next;
+                if (queue->head == NULL) {
+                    queue->tail = NULL;
+                }
+            } else if (prev) {
+                // Otherwise, unlink it from the list
+                prev->next = msg_node->next;
+                if (msg_node == queue->tail) {
+                    queue->tail = prev;
+                }
+            }
+            pthread_mutex_unlock(&queue->mutex);
+            Message *message = msg_node->msg;
+            free(msg_node); // Free the MessageNode
+            return message;
+        }
+        prev = msg_node;
+        msg_node = msg_node->next;
+    }
+
+    // If no matching message is found, wait
+    while (1) {
         pthread_cond_wait(&queue->cond, &queue->mutex);
+        msg_node = queue->head;
+        prev = NULL;
+
+        while (msg_node != NULL) {
+            if (msg_node->msg->request_id == request_id) {
+                // If it's the head, move the head pointer
+                if (msg_node == queue->head) {
+                    queue->head = msg_node->next;
+                    if (queue->head == NULL) {
+                        queue->tail = NULL;
+                    }
+                } else if (prev) {
+                    // Otherwise, unlink it from the list
+                    prev->next = msg_node->next;
+                    if (msg_node == queue->tail) {
+                        queue->tail = prev;
+                    }
+                }
+                pthread_mutex_unlock(&queue->mutex);
+                Message *message = msg_node->msg;
+                free(msg_node); // Free the MessageNode
+                return message;
+            }
+            prev = msg_node;
+            msg_node = msg_node->next;
+        }
     }
-    MessageNode *msg = queue->head; // Use non-const pointer to modify the queue
-    queue->head = msg->next;
-    if (queue->head == NULL) {
-        queue->tail = NULL;
-    }
-    pthread_mutex_unlock(&queue->mutex);
-    Message *message = msg->msg;
-    free(msg); // Free the MessageNode
-    return message;
 }
+
 
 int send_message(const Node *sender, const char *receiver_ip, const int receiver_port, const Message *msg) {
     struct sockaddr_in receiver_addr = {0};

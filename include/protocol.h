@@ -18,12 +18,12 @@
 
 // simple message protocol
 typedef struct {
-    char type[16]; // message type (e.g. JOIN, NOTIFY, FIND_SUCCESSOR, STABILIZE, REPLY)
-    uint8_t id[HASH_SIZE]; // ID involved (e.g. the ID to find a successor for)
+    char type[16]; // message type
+    uint8_t id[HASH_SIZE]; // ID involved
     char ip[16]; // IP address of the sender
     int port; // port of the sender
-    // additional data (e.g. filename)
-    char data[MSG_SIZE - sizeof(char[16]) - sizeof(uint8_t[20]) - sizeof(char[16]) - sizeof(int)];
+    uint32_t request_id; // unique identifier for matching replies
+    char data[MSG_SIZE - sizeof(char[16]) - sizeof(uint8_t[20]) - sizeof(char[16]) - sizeof(int) - sizeof(uint32_t)];
 } Message;
 
 typedef struct MessageNode {
@@ -44,7 +44,7 @@ void init_queue(MessageQueue *queue);
 
 void push_message(MessageQueue *queue, const Message *msg);
 
-Message *pop_message(MessageQueue *queue);
+Message *pop_message(MessageQueue *queue, uint32_t request_id);
 
 int send_message(const Node *sender, const char *receiver_ip, int receiver_port, const Message *msg);
 

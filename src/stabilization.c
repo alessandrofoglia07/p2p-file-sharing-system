@@ -20,7 +20,9 @@ void create_ring(Node *n) {
 // join an existing chord ring
 void join_ring(Node *n, const char *existing_ip, const int existing_port) {
     // send a JOIN message to the existing node
+    const uint32_t req_id = generate_id();
     Message msg;
+    msg.request_id = req_id;
     strcpy(msg.type, MSG_JOIN);
     memcpy(msg.id, n->id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
@@ -29,7 +31,7 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
     send_message(n, existing_ip, existing_port, &msg);
 
     // the existing node will respond with the new node's successor
-    const Message *response = pop_message(&reply_queue);
+    const Message *response = pop_message(&reply_queue, req_id);
     if (response == NULL) {
         printf("Failed to join the ring at %s:%d\n", existing_ip, existing_port);
         fflush(stdout);
@@ -55,7 +57,9 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
  */
 void stabilize(Node *n) {
     // send a STABILIZE message to the successor
+    const uint32_t req_id = generate_id();
     Message msg;
+    msg.request_id = req_id;
     strcpy(msg.type, MSG_STABILIZE);
     memcpy(msg.id, n->id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
@@ -64,7 +68,7 @@ void stabilize(Node *n) {
     send_message(n, n->successor->ip, n->successor->port, &msg);
 
     // receive the successor's predecessor to verify
-    const Message *response = pop_message(&reply_queue);
+    const Message *response = pop_message(&reply_queue, req_id);
 
     // x is the successor's predecessor
     Node *x = create_node(response->ip, response->port);
@@ -81,6 +85,7 @@ void stabilize(Node *n) {
 void notify(Node *n, Node *n_prime) {
     // send a NOTIFY message to n
     Message msg;
+    msg.request_id = generate_id();
     strcpy(msg.type, MSG_NOTIFY);
     memcpy(msg.id, n_prime->id, HASH_SIZE);
     strcpy(msg.ip, n_prime->ip);
@@ -113,6 +118,7 @@ void check_predecessor(Node *n) {
 
     // send a heartbeat message to the predecessor
     Message msg;
+    msg.request_id = generate_id();
     strcpy(msg.type, MSG_HEARTBEAT);
     memcpy(msg.id, n->id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
@@ -142,7 +148,9 @@ Node *find_successor_remote(const Node *n, const Node *n0, const uint8_t *id) {
     }
 
     // send a FIND_SUCCESSOR message to the current node
+    const uint32_t req_id = generate_id();
     Message msg;
+    msg.request_id = req_id;
     strcpy(msg.type, MSG_FIND_SUCCESSOR);
     memcpy(msg.id, id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
@@ -152,7 +160,7 @@ Node *find_successor_remote(const Node *n, const Node *n0, const uint8_t *id) {
     send_message(n, n0->ip, n0->port, &msg);
 
     // receive the successor's info
-    const Message *response = pop_message(&reply_queue);
+    const Message *response = pop_message(&reply_queue, req_id);
 
     Node *successor = n->successor;
     memcpy(successor->id, response->id, HASH_SIZE);

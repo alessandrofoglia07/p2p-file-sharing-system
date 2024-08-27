@@ -82,6 +82,7 @@ void handle_requests(Node *n, const Message *msg) {
 
         // reply with successor info
         Message response;
+        response.request_id = msg->request_id;
         strcpy(response.type, MSG_REPLY);
         memcpy(response.id, successor->id, HASH_SIZE);
         strcpy(response.ip, successor->ip);
@@ -97,6 +98,7 @@ void handle_requests(Node *n, const Message *msg) {
 
         // reply with successor info
         Message response;
+        response.request_id = msg->request_id;
         strcpy(response.type, MSG_REPLY);
         memcpy(response.id, successor->id, HASH_SIZE);
         strcpy(response.ip, successor->ip);
@@ -108,6 +110,7 @@ void handle_requests(Node *n, const Message *msg) {
         // STABILIZE request handling
         if (n->predecessor != NULL) {
             Message response;
+            response.request_id = msg->request_id;
             strcpy(response.type, MSG_REPLY);
             memcpy(response.id, n->predecessor->id, HASH_SIZE);
             strcpy(response.ip, n->predecessor->ip);
@@ -140,6 +143,7 @@ void handle_requests(Node *n, const Message *msg) {
         const FileEntry *file = find_file(n, msg->data);
         if (file) {
             Message response;
+            response.request_id = msg->request_id;
             strcpy(response.type, MSG_REPLY);
             memcpy(response.id, file->id, HASH_SIZE);
             strcpy(response.ip, file->owner_ip);
@@ -149,6 +153,7 @@ void handle_requests(Node *n, const Message *msg) {
             send_message(n, msg->ip, msg->port, &response);
         } else {
             Message response;
+            response.request_id = msg->request_id;
             strcpy(response.type, MSG_REPLY);
             memset(response.id, 0, HASH_SIZE);
             strcpy(response.ip, "");
@@ -167,6 +172,7 @@ void handle_requests(Node *n, const Message *msg) {
                 return;
             }
             Message response;
+            response.request_id = msg->request_id;
             strcpy(response.type, MSG_REPLY);
             memcpy(response.id, file_entry->id, HASH_SIZE);
             strcpy(response.ip, file_entry->owner_ip);

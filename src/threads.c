@@ -19,7 +19,7 @@ void *node_thread(void *arg) {
         stabilize(n);
         fix_fingers(n, &(int){0});
         check_predecessor(n);
-        sleep(5);
+        sleep(15);
     }
 }
 
@@ -37,34 +37,34 @@ void *listener_thread(void *arg) {
 // main thread (blocking)
 void handle_user_commands(Node *node) {
     while (1) {
-        char command[256];
+        char command[4096];
         fgets(command, sizeof(command), stdin);
         command[strcspn(command, "\n")] = '\0'; // remove trailing newline
 
         if (strncmp(command, "store", 5) == 0) {
             char filepath[512];
-            sscanf(command, "store %s", filepath);
+            sscanf(command, "store %511s", filepath);
             if (strlen(filepath) == 0) {
                 printf("Invalid filepath\n");
                 continue;
             }
-            if (store_file(node, filepath) == 0) {
-                printf("File stored successfully\n");
-            } else {
+            if (store_file(node, filepath) < 0) {
                 printf("Failed to store file\n");
+                continue;
             }
+            printf("File stored successfully\n");
         } else if (strncmp(command, "find", 4) == 0) {
             char filename[256];
-            sscanf(command, "find %s", filename);
+            sscanf(command, "find %255s", filename);
             if (strlen(filename) == 0) {
                 printf("Invalid filename\n");
                 continue;
             }
             FileEntry *file = find_file(node, filename);
-            if (file) {
-                printf("File '%s' found at %s:%d\n", filename, file->owner_ip, file->owner_port);
-            } else {
+            if (file == NULL) {
                 printf("File '%s' not found\n", filename);
+            } else {
+                printf("File '%s' %s  found at %s:%d\n", filename, file->filepath, file->owner_ip, file->owner_port);
             }
         } else if (strncmp(command, "download", 8) == 0) {
             char ip[16];
