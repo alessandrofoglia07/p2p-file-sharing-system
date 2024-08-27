@@ -13,6 +13,7 @@ typedef struct Node {
     struct Node *predecessor;
     struct Node *finger[M];
     struct FileEntry *files;
+    struct FileEntry *uploaded_files;
     int sockfd;
 } Node;
 

@@ -52,6 +52,7 @@ void handle_user_commands(Node *node) {
                 printf("Failed to store file\n");
                 continue;
             }
+            confirm_file_stored(node, filepath);
             printf("File stored successfully\n");
         } else if (strncmp(command, "find", 4) == 0) {
             char filename[256];
@@ -64,11 +65,37 @@ void handle_user_commands(Node *node) {
             if (file == NULL) {
                 printf("File '%s' not found\n", filename);
             } else {
-                printf("File '%s' %s  found at %s:%d\n", filename, file->filepath, file->owner_ip, file->owner_port);
+                printf("File '%s' found at %s:%d\n", filename, file->owner_ip, file->owner_port);
+
+                printf("Do you want to download this file? [y/n] ");
+                const char c = getchar();
+                getchar(); // consume newline
+
+                if (toupper(c) == 'Y') {
+                    printf("Starting download...\n");
+                    if (download_file(node, file) < 0) {
+                        printf("Failed to download file\n");
+                    } else {
+                        printf("File downloaded successfully\n");
+                    }
+                } else {
+                    printf("Download canceled.\n");
+                }
             }
         } else if (strncmp(command, "download", 8) == 0) {
             char ip[16];
             int port;
+        } else if (strcmp(command, "lslocal") == 0) {
+            FileEntry *cur = node->uploaded_files;
+            if (cur == NULL) {
+                printf("No files uploaded yet.\n");
+            } else {
+                printf("Files uploaded:\n");
+                while (cur != NULL) {
+                    printf("  %s\n", cur->filename);
+                    cur = cur->next;
+                }
+            }
             char filename[256];
             sscanf(command, "download %s:%d %s", ip, &port, filename);
             if (strlen(ip) == 0 || strlen(filename) == 0) {
@@ -81,6 +108,7 @@ void handle_user_commands(Node *node) {
             printf("  store <filepath> - store a file in the network\n");
             printf("  find <filename> - find a file in the network\n");
             printf("  download <ip:port> <filename> - download a file from the network\n");
+            printf("  lslocal - list all files uploaded by the user\n");
             printf("  help/? - show this help message\n");
             printf("  exit - exit the program\n");
         } else if (strcmp(command, "exit") == 0) {

@@ -36,6 +36,30 @@ int store_file(Node *n, const char *filepath) {
     return send_message(n, responsible_node->ip, responsible_node->port, &msg);
 }
 
+// run if store function is successful to confirm that the file was actually uploaded
+void confirm_file_stored(Node *node, const char *filepath) {
+    FileEntry *file_entry = (FileEntry *) malloc(sizeof(FileEntry));
+    if (file_entry == NULL) {
+        perror("malloc");
+        return;
+    }
+
+    strcpy(file_entry->filepath, filepath);
+    const char *filename = strrchr(filepath, '/');
+    if (filename == NULL) {
+        filename = (char *) filepath;
+    } else {
+        filename++;
+    }
+    hash(filename, file_entry->id);
+    strncpy(file_entry->filename, filename, sizeof(file_entry->filename));
+    strcpy(file_entry->owner_ip, node->ip);
+    file_entry->owner_port = node->port;
+
+    file_entry->next = node->uploaded_files;
+    node->uploaded_files = file_entry;
+}
+
 int internal_store_file(Node *n, const char *filename, const char *filepath, const uint8_t *file_id,
                         const char *uploader_ip, const int uploader_port) {
     FileEntry *new_entry = (FileEntry *) malloc(sizeof(FileEntry));
@@ -105,7 +129,18 @@ FileEntry *find_file(Node *n, const char *filename) {
     return file_entry;
 }
 
-void download_file(const Node *n, const char ip[16], const int port, const char *filename) {
+FileEntry *find_uploaded_file(const Node *n, const char *filepath) {
+    FileEntry *current = n->uploaded_files;
+    while (current != NULL) {
+        if (strcmp(current->filepath, filepath) == 0) {
+            return current;
+        }
+        current = current->next;
+    }
+    return NULL;
+}
+
+int download_file(const Node *n, const FileEntry *file_entry) {
     const uint32_t req_id = generate_id();
     Message msg;
     msg.request_id = req_id;
@@ -113,14 +148,16 @@ void download_file(const Node *n, const char ip[16], const int port, const char 
     memcpy(msg.id, n->id, HASH_SIZE);
     strcpy(msg.ip, n->ip);
     msg.port = n->port;
-    strcpy(msg.data, filename);
+    strcpy(msg.data, file_entry->filepath);
 
-    send_message(n, ip, port, &msg);
+    if (send_message(n, file_entry->owner_ip, file_entry->owner_port, &msg) < 0) {
+        return -1;
+    }
 
-    FILE *file = fopen(filename, "wb");
+    FILE *file = fopen(file_entry->filename, "wb");
     if (file == NULL) {
         perror("File opening failed");
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
     Message *response;
@@ -130,4 +167,6 @@ void download_file(const Node *n, const char ip[16], const int port, const char 
     }
 
     fclose(file);
+
+    return 0;
 }

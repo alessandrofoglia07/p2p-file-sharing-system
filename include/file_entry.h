@@ -16,11 +16,16 @@ typedef struct FileEntry {
 
 int store_file(Node *n, const char *filepath);
 
+void confirm_file_stored(Node *node, const char *filepath);
+
 int internal_store_file(Node *n, const char *filename, const char *filepath, const uint8_t *file_id,
                         const char *uploader_ip, int uploader_port);
 
 FileEntry *find_file(Node *n, const char *filename);
 
 void download_file(const Node *n, const char ip[], const int port, const char *filename);
+FileEntry *find_uploaded_file(const Node *n, const char *filepath);
+
+int download_file(const Node *n, const FileEntry *file_entry);
 
 #endif //FILE_ENTRY_H

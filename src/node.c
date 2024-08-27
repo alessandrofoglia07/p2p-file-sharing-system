@@ -163,9 +163,10 @@ void handle_requests(Node *n, const Message *msg) {
         }
     } else if (strcmp(msg->type, MSG_DOWNLOAD_FILE) == 0) {
         // DOWNLOAD_FILE request handling
-        const char *filename = msg->data;
-        const FileEntry *file_entry = find_file(n, filename);
-        if (file_entry) {
+        const char *filepath = msg->data;
+        // ensure the file was uploaded by this node before sending it
+        const FileEntry *file_entry = find_uploaded_file(n, filepath);
+        if (file_entry != NULL) {
             FILE *file = fopen(file_entry->filepath, "rb");
             if (file == NULL) {
                 perror("Failed to open file");
@@ -183,6 +184,15 @@ void handle_requests(Node *n, const Message *msg) {
                 send_message(n, msg->ip, msg->port, &response);
             }
             fclose(file);
+        } else {
+            Message response;
+            response.request_id = msg->request_id;
+            strcpy(response.type, MSG_REPLY);
+            memset(response.id, 0, HASH_SIZE);
+            strcpy(response.ip, "");
+            response.port = 0;
+            strcpy(response.data, "File not found");
+            send_message(n, msg->ip, msg->port, &response);
         }
     } else {
         printf("Unknown message type: %s\n", msg->type);
