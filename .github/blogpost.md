@@ -1,14 +1,33 @@
+## Table of Contents
+
+1. [Introduction](#introduction)
+2. [The Idea](#the-idea)
+3. [The Actual Implementation](#the-actual-implementation)
+    - [DHTs](#dhts)
+    - [Introduction to Chord Algorithm](#introduction-to-chord-algorithm)
+    - [My Own Node/Data Implementation](#my-own-nodedata-implementation)
+    - [The `find_successor` Function](#the-find_successor-function)
+    - [Create/Join a Network](#createjoin-a-network)
+    - [The Stabilization Process](#the-stabilization-process)
+        - [`fix_fingers()`](#fix_fingers)
+        - [`stabilize()` and `notify()`](#stabilize-and-notify)
+        - [`check_predecessor()`](#check_predecessor)
+        - [Complete Routine](#complete-routine)
+4. [Additional Resources and References](#additional-resources-and-references)
+5. [Who am I?](#who-am-i)
+6. [Arcade by Hack Club 🟧](#arcade-by-hack-club-)
+
 ## Introduction
 
 _Before talking about my experience, I wanted to specify that this post can be read as both a **report of my personal experience** and a **tutorial for implementing the Chord protocol in C**. Enjoy your read!_
 
-I recently created a Peer-to-Peer file sharing system (you can find the full repo [here](https://github.com/alessandrofoglia07/p2p-file-sharing-system) and I'd really appreciate if you gave it a ⭐ :D) in C and I wanted to share some details about why I started this project, how I managed to implement it and how it made me a better coder overall.
+I recently created a Peer-to-Peer file sharing system (you can find the full repo [here](https://github.com/alessandrofoglia07/p2p-file-sharing-system), and I'd really appreciate if you gave it a ⭐ :D) in C and I wanted to share some details about why I started this project, how I managed to implement it and how it made me a better coder overall.
 
 ## The idea
 
-I'm a high-school student, a Web Developer and specifically a Cloud computing enthusiast. For quite some time now I've begun approaching to the C language, in order to really understand how computers work at the _low level_ and how to work with them effectively. For this reason, I decided to start diving into some low level _networking_ projects (I also created a [HTTP protocol implementation](https://github.com/alessandrofoglia07/minimalist-http-server) and a simple [chat app](https://github.com/alessandrofoglia07/chat-application-c) in C) and surely this one was the hardest of them all!
+I'm a high-school student, a Web Developer and specifically a Cloud computing enthusiast. For quite some time now I've begun approaching to the C language, in order to really understand how computers work at the _low level_ and how to work with them effectively. For this reason, I decided to start diving into some low level _networking_ projects (I also created an [HTTP protocol implementation](https://github.com/alessandrofoglia07/minimalist-http-server) and a simple [chat app](https://github.com/alessandrofoglia07/chat-application-c) in C) and surely this one was the hardest of them all!
 
-Initially, I began implementing a distributed network of unordered peers as I was able to do with the knowledge I got by coding the aforesaid projects. Soon, however, I realized that the approach I unknowingly chose was extremely inefficient and wouldn't work for large networks. Therefore I started to search for a more optimized solution and I stumbled upon Distributed Hash Tables (DHTs) and the Chord algorithm. As a professional-high-schooler, the first thing I did was asking ChatGPT "_What are the benefits of implementing a DHT into a p2p application?_"... it answered me with big words like "_decentralization_", "_fault tolerance_", "_efficiency_" and "_robustness_"; however it also mentioned a downside: "_complexity in implementation_". And I can say, as a student with little to no ability in implementing even simple data structures, that it was in fact telling the truth 😅.
+Initially, I began implementing a distributed network of unordered peers as I was able to do with the knowledge I got by coding the aforesaid projects. Soon, however, I realized that the approach I unknowingly chose was extremely inefficient and wouldn't work for large networks. Therefore, I started to search for a more optimized solution and I stumbled upon Distributed Hash Tables (DHTs) and the Chord algorithm. As a professional-high-schooler, the first thing I did was asking ChatGPT "_What are the benefits of implementing a DHT into a p2p application?_"... it answered me with big words like "_decentralization_", "_fault tolerance_", "_efficiency_" and "_robustness_"; however it also mentioned a downside: "_complexity in implementation_". And I can say, as a student with little to no ability in implementing even simple data structures, that it was in fact telling the truth 😅.
 
 ## The actual implementation
 
@@ -18,7 +37,7 @@ So, exactly... _what is a distributed hash table_?<br> As the name says, a distr
 
 ### Introduction to Chord algorithm
 
-Then, how does Chord effectively create a DHT?<br> [Chord](https://en.wikipedia.org/wiki/Chord_(peer-to-peer)) (an algorithm introduced in 2001 as one of the four original DHT protocols) creates a ring shaped network in which each node has a specific position based on an ID, generated through an hash function (I personally used the [SHA-1](https://en.wikipedia.org/wiki/SHA-1) function). Each node has a successor and a predecessor: the successor is the next node in the ring going in clockwise direction, the predecessor is counter-clockwise. The maximum amount of nodes in the ring is 2<sup>M</sup> where M is the amount of bits in the ID (if you're using the SHA-1 function, M is 160).
+Then, how does Chord effectively create a DHT?<br> [Chord](https://en.wikipedia.org/wiki/Chord_(peer-to-peer)) (an algorithm introduced in 2001 as one of the four original DHT protocols) creates a ring shaped network in which each node has a specific position based on an ID, generated through a hash function (I personally used the [SHA-1](https://en.wikipedia.org/wiki/SHA-1) function). Each node has a successor and a predecessor: the successor is the next node in the ring going in clockwise direction, the predecessor is counter-clockwise. The maximum amount of nodes in the ring is 2<sup>M</sup> where M is the amount of bits in the ID (if you're using the SHA-1 function, M is 160).
 
 ```
         Hash(Key) = 125
@@ -230,3 +249,113 @@ void fix_fingers(Node *n, int *next) {
     n->finger[*next] = finger;
 }
 ```
+
+#### `stabilize()` and `notify()`
+
+```
+// called periodically. n asks the successor
+// about its predecessor, verifies if n's immediate
+// successor is consistent, and tells the successor about n
+n.stabilize()
+    x = successor.predecessor
+    if x ∈ (n, successor) then
+        successor := x
+    successor.notify(n)
+
+n.notify(n0)
+    if predecessor is nil or n0∈(predecessor, n) then
+        predecessor := n0
+```
+
+```c
+/*
+ * Called periodically. Asks the successor for its predecessor,
+ * verifies it to be itself. If not, its verified that the new
+ * node lies between itself and successor. Therefore, the new
+ * node is set as the new successor. The new node is also notified
+ * of its new predecessor.
+ */
+void stabilize(Node *n) {
+    // send a STABILIZE message to the successor
+    send_message(n, n->successor->ip, n->successor->port, "STABILIZE");
+
+    // receive the successor's predecessor to verify
+    Message response = receive_message();
+
+    // x is the successor's predecessor
+    Node *x = create_node(response->ip, response->port);
+
+    // if x is in the interval (n, successor), then update the successor
+    if (is_in_interval(x->id, n->id, n->successor->id)) {
+        n->successor = x;
+    }
+
+    // notify the new successor to update its predecessor
+    notify(n->successor, n);
+}
+
+void notify(Node *n, Node *n_prime) {
+    // send a NOTIFY message to n
+    // notify that n_prime might be its new predecessor
+    send_message(n_prime, n->ip, n->port, "NOTIFY");
+
+    if (n->predecessor == NULL || is_in_interval(n->id, n->predecessor->id, n->id)) {
+        n->predecessor = n_prime;
+    }
+}
+```
+
+#### `check_predecessor()`
+
+```
+// called periodically. checks whether predecessor has failed.
+n.check_predecessor()
+    if predecessor has failed then
+        predecessor := nil
+```
+
+```c
+void check_predecessor(Node *n) {
+    if (n->predecessor == NULL) {
+        return;
+    }
+    // send a heartbeat message to the predecessor
+    // if the predecessor does not respond, it has failed -> set it to NULL
+    if (send_message(n, n->predecessor->ip, n->predecessor->port, "HEARTBEAT") < 0) {
+        n->predecessor = NULL;
+    }
+}
+```
+
+#### Complete routine
+
+I set up a multithreaded environment (with the [`pthread`](https://www.geeksforgeeks.org/thread-functions-in-c-c/) API) and created a thread that runs this routine every 15 seconds (as suggested in [the official Chord paper](https://pdos.csail.mit.edu/papers/chord:sigcomm01/chord_sigcomm.pdf)):
+
+```c
+void *node_thread(void *arg) {
+    Node *n = (Node *) arg;
+    while (1) {
+        stabilize(n);
+        fix_fingers(n, &(int){0});
+        check_predecessor(n);
+        sleep(15);
+    }
+}
+```
+
+## Additional Resources and References
+
+If you want to dive deeper into how DHTs and the Chord algorithm work, I can suggest you a specific set of resources I found particularly useful:
+
+- [**My Peer-to-Peer File Sharing System**](https://github.com/alessandrofoglia07/p2p-file-sharing-system) (I'd really appreciate if you gave it a ⭐ :D)
+- [**Chord (peer-to-peer) - Wikipedia**](https://en.wikipedia.org/wiki/Chord_(peer-to-peer))
+- [**Chord official paper**](https://pdos.csail.mit.edu/papers/chord:sigcomm01/chord_sigcomm.pdf)
+- [**Chord protocol implementation in Golang - Practical Papers**](https://arush15june.github.io/posts/2020-28-01-chord/)
+
+## Who am I?
+
+I am an Italian high-school student who is interested in Web Development 🧙‍♂️. If you'd like to support me, you can follow me here and on my [GitHub](https://github.com/alessandrofoglia07), I would really appreciate it 💜
+
+## Arcade by Hack Club 🟧
+
+I wanted to thank [Hack Club](https://hackclub.com/) and [GitHub Education](https://github.com/education) for the motivation they give us high-schoolers to code, to learn new things and to create amazing projects together. If you are a high-schooler and a programmer, I highly suggest you to join Hack Club in order to find more people with the same passions as you and to apply for the GitHub Education pack to get a series of tools to elevate your coding skills. I'm sure you won't regret it! 🚀

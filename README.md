@@ -8,6 +8,7 @@
 <p align="center">
   <a href="#key-features">Key Features</a> •
   <a href="#how-to-use">How To Use</a> •
+  <a href="learn more">Learn More</a> •
   <a href="#license">License</a>
 </p>
 
@@ -68,6 +69,10 @@ $ cmake --build ./cmake-build-debug --target p2p_file_sharing_system -- -j 6
 # Run the program (entry_ip and entry_port are optional, used for joining an existing ring)
 $ ./build/p2p_file_sharing_system <ip> <port> <entry_ip> <entry_port>
 ```
+
+## Learn More
+
+If you want to learn more about this project and my experience developing it, you can check out the blog post I wrote about it [here](https://github.com/alessandrofoglia07/p2p-file-sharing-system/blob/main/.github/blogpost.md).
 
 ## License
 
