@@ -169,7 +169,6 @@ void handle_requests(Node *n, const Message *msg) {
         const char *filepath = msg->data;
         // ensure the file was uploaded by this node before sending it
         const FileEntry *file_entry = find_uploaded_file(n, filepath);
-        printf("%p\n", file_entry);
         if (file_entry != NULL) {
             FILE *file = fopen(file_entry->filepath, "rb");
             if (file == NULL) {
@@ -216,39 +215,11 @@ void handle_requests(Node *n, const Message *msg) {
         strcpy(response.ip, "");
         response.port = 0;
 
-        FileEntry *temp = n->files;
-        FileEntry *prev = NULL;
-
-        // If the head node itself holds the key
-        if (temp != NULL && temp->id == msg->id) {
-            n->files = temp->next;
-            free(temp);
-            strcpy(response.data, "File deleted");
-            send_message(n, msg->ip, msg->port, &response);
-            return;
-        }
-
-        // Search for the key and keep track of the previous node
-        while (temp != NULL && memcmp(temp->id, msg->id, HASH_SIZE) != 0) {
-            prev = temp;
-            temp = temp->next;
-        }
-
-        // If key was not present in the list
-        if (temp == NULL) {
+        if (delete_file_entry(&n->files, msg->id) < 0) {
             strcpy(response.data, "File not found");
-            send_message(n, msg->ip, msg->port, &response);
-            return;
+        } else {
+            strcpy(response.data, "File deleted");
         }
-
-        // Unlink the node from the linked list
-        if (prev) {
-            prev->next = temp->next;
-        }
-
-        free(temp);
-
-        strcpy(response.data, "File deleted");
         send_message(n, msg->ip, msg->port, &response);
     } else {
         printf("Unknown message type: %s\n", msg->type);

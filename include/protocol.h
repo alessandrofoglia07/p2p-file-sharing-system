@@ -15,7 +15,6 @@
 #define MSG_FILE_DATA "FILE_DATA"
 #define MSG_FILE_END "FILE_END"
 
-#include <stdint.h>
 #include <pthread.h>
 #include <sha1.h>
 

@@ -14,6 +14,7 @@
 char outdir[512] = "./";
 
 int set_outdir(const char *new_outdir) {
+    // check if directory exists
     DIR *dir = opendir(new_outdir);
     if (strlen(new_outdir) > sizeof(outdir) || dir == NULL) {
         return -1;
@@ -29,6 +30,7 @@ int store_file(Node *n, const char *filepath) {
         return -1;
     }
 
+    // get filename
     const char *filename = strrchr(filepath, '/');
     if (filename == NULL) {
         filename = (char *) filepath;
@@ -41,9 +43,12 @@ int store_file(Node *n, const char *filepath) {
 
     const Node *responsible_node = find_successor(n, file_id);
 
+    // if the responsible node is the current node, store the file locally
     if (memcmp(n->id, responsible_node->id, HASH_SIZE) == 0) {
         return internal_store_file(n, filename, filepath, file_id, n->ip, n->port);
     }
+
+    // send a message to the responsible node to store the file
     Message msg;
     msg.request_id = generate_id();
     strcpy(msg.type, MSG_STORE_FILE);
@@ -55,7 +60,7 @@ int store_file(Node *n, const char *filepath) {
     return send_message(n, responsible_node->ip, responsible_node->port, &msg);
 }
 
-// run if store function is successful to confirm that the file was actually uploaded
+// run if store function is successful to locally confirm that the file was actually uploaded
 void confirm_file_stored(Node *node, const char *filepath) {
     FileEntry *file_entry = (FileEntry *) malloc(sizeof(FileEntry));
     if (file_entry == NULL) {
@@ -75,6 +80,7 @@ void confirm_file_stored(Node *node, const char *filepath) {
     strcpy(file_entry->owner_ip, node->ip);
     file_entry->owner_port = node->port;
 
+    // add file to uploaded files list
     file_entry->next = node->uploaded_files;
     node->uploaded_files = file_entry;
 }
@@ -93,6 +99,7 @@ int internal_store_file(Node *n, const char *filename, const char *filepath, con
     strcpy(new_entry->owner_ip, uploader_ip);
     new_entry->owner_port = uploader_port;
 
+    // add file to files list
     new_entry->next = n->files;
     n->files = new_entry;
 
@@ -105,6 +112,7 @@ FileEntry *find_file(Node *n, const char *filename) {
 
     const Node *responsible_node = find_successor(n, file_id);
 
+    // if the responsible node is the current node, search for the file locally
     if (memcmp(n->id, responsible_node->id, HASH_SIZE) == 0) {
         FileEntry *current = n->files;
         while (current != NULL) {
@@ -116,6 +124,7 @@ FileEntry *find_file(Node *n, const char *filename) {
         return NULL; // file not found locally
     }
 
+    // send a message to the responsible node to find the file
     Message msg;
     msg.request_id = generate_id();
     strcpy(msg.type, MSG_FIND_FILE);
@@ -149,6 +158,7 @@ FileEntry *find_file(Node *n, const char *filename) {
 
 FileEntry *find_uploaded_file(const Node *n, const char *filepath) {
     FileEntry *current = n->uploaded_files;
+    // search for the file in the uploaded files list
     while (current != NULL) {
         if (strcmp(current->filepath, filepath) == 0) {
             return current;
@@ -171,6 +181,7 @@ int download_file(const Node *n, const FileEntry *file_entry) {
         return -1;
     }
 
+    // create the output file
     char outpath[sizeof(outdir) + sizeof(file_entry->filename)];
     strcpy(outpath, outdir);
     strcat(outpath, file_entry->filename);
@@ -188,16 +199,43 @@ int download_file(const Node *n, const FileEntry *file_entry) {
         return -1;
     }
 
-    // TODO: Fix this
     while ((response = pop_message(&download_queue, msg.request_id)) != NULL) {
+        // check if the file download is complete
         if (strcmp(response->type, MSG_FILE_END) == 0) {
             break;
         }
         fwrite(response->data, 1, strlen(response->data), file);
+        // write the file data to the output file
     }
 
     fclose(file);
 
+    return 0;
+}
+
+int delete_file_entry(FileEntry **pFiles, const uint8_t *id) {
+    FileEntry *temp = *pFiles;
+    FileEntry *prev = NULL;
+    // If the head node itself holds the key
+    if (temp != NULL && memcmp(temp->id, id, HASH_SIZE) == 0) {
+        *pFiles = temp->next;
+        free(temp);
+        return 0;
+    }
+    // Search for the key and keep track of the previous node
+    while (temp != NULL && memcmp(temp->id, id, HASH_SIZE) != 0) {
+        prev = temp;
+        temp = temp->next;
+    }
+    // If key was not present in the list
+    if (temp == NULL) {
+        return -1;
+    }
+    // Unlink the node from the linked list
+    if (prev) {
+        prev->next = temp->next;
+    }
+    free(temp);
     return 0;
 }
 
@@ -207,6 +245,7 @@ int delete_file(Node *n, const char *filename) {
         return -1;
     }
     int found = 0;
+    // search for the file in the uploaded files list
     while (cur != NULL) {
         if (strcmp(filename, cur->filename) == 0) {
             found = 1;
@@ -217,7 +256,17 @@ int delete_file(Node *n, const char *filename) {
     if (!found) {
         return -1;
     }
+    // find the responsible node for the file
     const Node *responsible_node = find_successor(n, cur->id);
+
+    // if the responsible node is the current node, delete the file locally
+    if (memcmp(n->id, responsible_node->id, HASH_SIZE) == 0) {
+        const int result1 = delete_file_entry(&n->files, cur->id);
+        const int result2 = delete_file_entry(&n->uploaded_files, cur->id);
+        return result1 == 0 && result2 == 0 ? 0 : -1;
+    }
+
+    // send a message to the responsible node to delete the file
     Message msg;
     msg.request_id = generate_id();
     strcpy(msg.type, MSG_DELETE_FILE);
@@ -234,32 +283,6 @@ int delete_file(Node *n, const char *filename) {
         return -1;
     }
 
-    FileEntry *temp = n->uploaded_files;
-    FileEntry *prev = NULL;
-    // If the head node itself holds the key
-    if (temp != NULL && memcmp(temp->id, cur->id, HASH_SIZE) == 0) {
-        n->uploaded_files = temp->next; // Change head
-        free(temp); // Free old head
-        return 0;
-    }
-
-    // Search for the key and keep track of the previous node
-    while (temp != NULL && memcmp(temp->id, cur->id, HASH_SIZE) != 0) {
-        prev = temp;
-        temp = temp->next;
-    }
-
-    // If key was not present in the list
-    if (temp == NULL) {
-        return -1;
-    }
-
-    // Unlink the node from the linked list
-    if (prev) {
-        prev->next = temp->next;
-    }
-
-    free(temp);
-
-    return 0;
+    // delete the file from the uploaded files list
+    return delete_file_entry(&n->uploaded_files, cur->id);
 }

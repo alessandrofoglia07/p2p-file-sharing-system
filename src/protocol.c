@@ -123,11 +123,6 @@ int receive_message(const Node *n, Message *msg) {
         return -1;
     }
 
-    if (bytes_read < sizeof(Message)) {
-        fprintf(stderr, "Received data is smaller than expected\n");
-        return -1;
-    }
-
     memcpy(msg, buffer, sizeof(Message)); // Copy received data into Message
 
     return bytes_read;

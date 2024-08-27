@@ -31,6 +31,8 @@ FileEntry *find_uploaded_file(const Node *n, const char *filepath);
 
 int download_file(const Node *n, const FileEntry *file_entry);
 
+int delete_file_entry(FileEntry **pFiles, const uint8_t *id);
+
 int delete_file(Node *n, const char *filename);
 
 #endif //FILE_ENTRY_H
