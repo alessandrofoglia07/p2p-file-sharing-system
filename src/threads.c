@@ -93,20 +93,24 @@ void handle_user_commands(Node *node) {
                     cur = cur->next;
                 }
             }
+        } else if (strncmp(command, "delete", 6) == 0) {
             char filename[256];
-            sscanf(command, "download %s:%d %s", ip, &port, filename);
-            if (strlen(ip) == 0 || strlen(filename) == 0) {
-                printf("Invalid command\n");
+            sscanf(command, "delete %255s", filename);
+            if (strlen(filename) == 0) {
+                printf("Invalid filename\n");
                 continue;
             }
-            download_file(node, ip, port, filename);
+            if (delete_file(node, filename) < 0) {
+                printf("Failed to delete file\n");
+            } else {
+                printf("File deleted successfully\n");
+            }
         } else if (strcmp(command, "help") == 0 || strcmp(command, "?") == 0) {
             printf("Available commands:\n");
             printf("  store <filepath> - store a file in the network\n");
             printf("  find <filename> - find a file in the network\n");
-            printf("  download <ip:port> <filename> - download a file from the network\n");
-            printf("  lslocal - list all files uploaded by the user\n");
             printf("  uploaded - list all files uploaded by the user\n");
+            printf("  delete <filename> - delete a file uploaded by the user\n");
             printf("  help/? - show this help message\n");
             printf("  exit - exit the program\n");
         } else if (strcmp(command, "exit") == 0) {

@@ -23,9 +23,10 @@ int internal_store_file(Node *n, const char *filename, const char *filepath, con
 
 FileEntry *find_file(Node *n, const char *filename);
 
-void download_file(const Node *n, const char ip[], const int port, const char *filename);
 FileEntry *find_uploaded_file(const Node *n, const char *filepath);
 
 int download_file(const Node *n, const FileEntry *file_entry);
+
+int delete_file(Node *n, const char *filename);
 
 #endif //FILE_ENTRY_H

@@ -11,6 +11,7 @@
 #define MSG_REPLY "REPLY"
 #define MSG_DOWNLOAD_FILE "DOWNLOAD_FILE"
 #define MSG_FIND_FILE "FIND_FILE"
+#define MSG_DELETE_FILE "DELETE_FILE"
 
 #include <stdint.h>
 #include <pthread.h>

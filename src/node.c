@@ -194,6 +194,48 @@ void handle_requests(Node *n, const Message *msg) {
             strcpy(response.data, "File not found");
             send_message(n, msg->ip, msg->port, &response);
         }
+    } else if (strcmp(msg->type, MSG_DELETE_FILE) == 0) {
+        Message response;
+        response.request_id = msg->request_id;
+        strcpy(response.type, MSG_REPLY);
+        memset(response.id, 0, HASH_SIZE);
+        strcpy(response.ip, "");
+        response.port = 0;
+
+        FileEntry *temp = n->files;
+        FileEntry *prev = NULL;
+
+        // If the head node itself holds the key
+        if (temp != NULL && temp->id == msg->id) {
+            n->files = temp->next;
+            free(temp);
+            strcpy(response.data, "File deleted");
+            send_message(n, msg->ip, msg->port, &response);
+            return;
+        }
+
+        // Search for the key and keep track of the previous node
+        while (temp != NULL && memcmp(temp->id, msg->id, HASH_SIZE) != 0) {
+            prev = temp;
+            temp = temp->next;
+        }
+
+        // If key was not present in the list
+        if (temp == NULL) {
+            strcpy(response.data, "File not found");
+            send_message(n, msg->ip, msg->port, &response);
+            return;
+        }
+
+        // Unlink the node from the linked list
+        if (prev) {
+            prev->next = temp->next;
+        }
+
+        free(temp);
+
+        strcpy(response.data, "File deleted");
+        send_message(n, msg->ip, msg->port, &response);
     } else {
         printf("Unknown message type: %s\n", msg->type);
     }

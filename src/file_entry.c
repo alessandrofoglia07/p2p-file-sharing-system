@@ -174,3 +174,66 @@ int download_file(const Node *n, const FileEntry *file_entry) {
 
     return 0;
 }
+
+int delete_file(Node *n, const char *filename) {
+    const FileEntry *cur = n->uploaded_files;
+    if (cur == NULL) {
+        return -1;
+    }
+    int found = 0;
+    while (cur != NULL) {
+        if (strcmp(filename, cur->filename) == 0) {
+            found = 1;
+            break;
+        }
+        cur = cur->next;
+    }
+    if (!found) {
+        return -1;
+    }
+    const Node *responsible_node = find_successor(n, cur->id);
+    Message msg;
+    msg.request_id = generate_id();
+    strcpy(msg.type, MSG_DELETE_FILE);
+    memcpy(msg.id, cur->id, HASH_SIZE);
+    strcpy(msg.ip, n->ip);
+    msg.port = n->port;
+
+    if (send_message(n, responsible_node->ip, responsible_node->port, &msg) < 0) {
+        return -1;
+    }
+
+    const Message *response = pop_message(&reply_queue, msg.request_id);
+    if (response == NULL || strcmp(response->data, "File not found") == 0) {
+        return -1;
+    }
+
+    FileEntry *temp = n->uploaded_files;
+    FileEntry *prev = NULL;
+    // If the head node itself holds the key
+    if (temp != NULL && memcmp(temp->id, cur->id, HASH_SIZE) == 0) {
+        n->uploaded_files = temp->next; // Change head
+        free(temp); // Free old head
+        return 0;
+    }
+
+    // Search for the key and keep track of the previous node
+    while (temp != NULL && memcmp(temp->id, cur->id, HASH_SIZE) != 0) {
+        prev = temp;
+        temp = temp->next;
+    }
+
+    // If key was not present in the list
+    if (temp == NULL) {
+        return -1;
+    }
+
+    // Unlink the node from the linked list
+    if (prev) {
+        prev->next = temp->next;
+    }
+
+    free(temp);
+
+    return 0;
+}
