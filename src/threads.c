@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 
 MessageQueue reply_queue;
+MessageQueue download_queue;
 
 void *node_thread(void *arg) {
     Node *n = (Node *) arg;
@@ -41,7 +42,19 @@ void handle_user_commands(Node *node) {
         fgets(command, sizeof(command), stdin);
         command[strcspn(command, "\n")] = '\0'; // remove trailing newline
 
-        if (strncmp(command, "store", 5) == 0) {
+        if (strncmp(command, "outdir", 6) == 0) {
+            char new_outdir[512];
+            sscanf(command, "outdir %511s", new_outdir);
+            if (strlen(new_outdir) == 0 || new_outdir[strlen(new_outdir) - 1] != '/') {
+                printf("Invalid directory\n");
+                continue;
+            }
+            if (set_outdir(new_outdir) < 0) {
+                printf("Failed to set output directory\n");
+            } else {
+                printf("Output directory set to %s\n", new_outdir);
+            }
+        } else if (strncmp(command, "store", 5) == 0) {
             char filepath[512];
             sscanf(command, "store %511s", filepath);
             if (strlen(filepath) == 0) {
@@ -107,6 +120,7 @@ void handle_user_commands(Node *node) {
             }
         } else if (strcmp(command, "help") == 0 || strcmp(command, "?") == 0) {
             printf("Available commands:\n");
+            printf("  outdir <directory> - set the output directory for downloaded files\n");
             printf("  store <filepath> - store a file in the network\n");
             printf("  find <filename> - find a file in the network\n");
             printf("  uploaded - list all files uploaded by the user\n");

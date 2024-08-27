@@ -8,7 +8,20 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <stddef.h>
+
+char outdir[512] = "./";
+
+int set_outdir(const char *new_outdir) {
+    DIR *dir = opendir(new_outdir);
+    if (strlen(new_outdir) > sizeof(outdir) || dir == NULL) {
+        return -1;
+    }
+    closedir(dir);
+    strcpy(outdir, new_outdir);
+    return 0;
+}
 
 int store_file(Node *n, const char *filepath) {
     // check if file exists
@@ -158,16 +171,29 @@ int download_file(const Node *n, const FileEntry *file_entry) {
         return -1;
     }
 
-    FILE *file = fopen(file_entry->filename, "wb");
+    char outpath[sizeof(outdir) + sizeof(file_entry->filename)];
+    strcpy(outpath, outdir);
+    strcat(outpath, file_entry->filename);
+
+    FILE *file = fopen(outpath, "wb");
     if (file == NULL) {
         perror("File opening failed");
         return -1;
     }
 
-    Message *response;
+    const Message *response = pop_message(&reply_queue, msg.request_id);
 
-    while ((response = pop_message(&reply_queue, msg.request_id))) {
-        fwrite(response->data, 1, sizeof(response->data) - offsetof(Message, data), file);
+    if (strcmp(response->data, "Starting download") != 0) {
+        fclose(file);
+        return -1;
+    }
+
+    // TODO: Fix this
+    while ((response = pop_message(&download_queue, msg.request_id)) != NULL) {
+        if (strcmp(response->type, MSG_FILE_END) == 0) {
+            break;
+        }
+        fwrite(response->data, 1, strlen(response->data), file);
     }
 
     fclose(file);

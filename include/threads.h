@@ -4,6 +4,7 @@
 #include "node.h"
 
 extern MessageQueue reply_queue;
+extern MessageQueue download_queue;
 
 void *node_thread(void *arg);
 

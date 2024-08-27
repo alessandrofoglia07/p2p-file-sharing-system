@@ -14,6 +14,10 @@ typedef struct FileEntry {
 
 #include "node.h"
 
+extern char outdir[512];
+
+int set_outdir(const char *new_outdir);
+
 int store_file(Node *n, const char *filepath);
 
 void confirm_file_stored(Node *node, const char *filepath);

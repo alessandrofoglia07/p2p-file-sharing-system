@@ -70,7 +70,10 @@ void cleanup_node(Node *n) {
 }
 
 void handle_requests(Node *n, const Message *msg) {
-    if (strcmp(msg->type, MSG_REPLY) == 0) {
+    if (strcmp(msg->type, MSG_FILE_DATA) == 0 || strcmp(msg->type, MSG_FILE_END) == 0) {
+        // FILE_DATA message handling (ignore, just push to download queue for other threads)
+        push_message(&download_queue, msg);
+    } else if (strcmp(msg->type, MSG_REPLY) == 0) {
         // REPLY message handling (ignore, just push to reply queue for other threads)
         push_message(&reply_queue, msg);
     } else if (strcmp(msg->type, MSG_JOIN) == 0) {
@@ -166,6 +169,7 @@ void handle_requests(Node *n, const Message *msg) {
         const char *filepath = msg->data;
         // ensure the file was uploaded by this node before sending it
         const FileEntry *file_entry = find_uploaded_file(n, filepath);
+        printf("%p\n", file_entry);
         if (file_entry != NULL) {
             FILE *file = fopen(file_entry->filepath, "rb");
             if (file == NULL) {
@@ -178,11 +182,21 @@ void handle_requests(Node *n, const Message *msg) {
             memcpy(response.id, file_entry->id, HASH_SIZE);
             strcpy(response.ip, file_entry->owner_ip);
             response.port = file_entry->owner_port;
-            strcpy(response.data, "");
+
+            strcpy(response.data, "Starting download");
+            send_message(n, msg->ip, msg->port, &response);
+
+            strcpy(response.type, MSG_FILE_DATA);
 
             while (fread(response.data, 1, sizeof(response.data), file) > 0) {
                 send_message(n, msg->ip, msg->port, &response);
+                usleep(1000);
             }
+
+            strcpy(response.type, MSG_FILE_END);
+            strcpy(response.data, "");
+            send_message(n, msg->ip, msg->port, &response);
+
             fclose(file);
         } else {
             Message response;
