@@ -204,8 +204,8 @@ int download_file(const Node *n, const FileEntry *file_entry) {
         if (strcmp(response->type, MSG_FILE_END) == 0) {
             break;
         }
-        fwrite(response->data, 1, strlen(response->data), file);
         // write the file data to the output file
+        fwrite(response->data, 1, response->data_len, file);
     }
 
     fclose(file);

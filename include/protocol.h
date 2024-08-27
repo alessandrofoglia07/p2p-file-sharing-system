@@ -25,7 +25,10 @@ typedef struct {
     char ip[16]; // IP address of the sender
     int port; // port of the sender
     uint32_t request_id; // unique identifier for matching replies
-    char data[MSG_SIZE - sizeof(char[16]) - sizeof(uint8_t[20]) - sizeof(char[16]) - sizeof(int) - sizeof(uint32_t)];
+    size_t data_len; // length of the data (only used for FILE_DATA typed messages)
+    char data[MSG_SIZE - sizeof(char[16]) - sizeof(uint8_t[HASH_SIZE]) - sizeof(char[16]) - sizeof(int) - sizeof(
+                  uint32_t) -
+              sizeof(size_t)];
 } Message;
 
 typedef struct MessageNode {

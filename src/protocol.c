@@ -29,7 +29,7 @@ void push_message(MessageQueue *queue, const Message *msg) {
     pthread_mutex_unlock(&queue->mutex);
 }
 
-Message *pop_message(MessageQueue *queue, uint32_t request_id) {
+Message *pop_message(MessageQueue *queue, const uint32_t request_id) {
     pthread_mutex_lock(&queue->mutex);
 
     MessageNode *prev = NULL;

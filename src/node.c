@@ -187,7 +187,10 @@ void handle_requests(Node *n, const Message *msg) {
 
             strcpy(response.type, MSG_FILE_DATA);
 
-            while (fread(response.data, 1, sizeof(response.data), file) > 0) {
+            size_t bytes_read;
+
+            while ((bytes_read = fread(response.data, 1, sizeof(response.data), file)) > 0) {
+                response.data_len = bytes_read;
                 send_message(n, msg->ip, msg->port, &response);
                 usleep(1000);
             }
