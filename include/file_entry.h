@@ -17,7 +17,7 @@ typedef struct FileEntry {
 
 #include "node.h"
 
-extern char outdir[512];
+extern char outdir[MAX_FILEPATH];
 
 int set_outdir(const char *new_outdir);
 

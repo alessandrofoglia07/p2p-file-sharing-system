@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-char outdir[512] = "./";
+char outdir[MAX_FILEPATH] = "./";
 
 int set_outdir(const char *new_outdir) {
     // check if directory exists
@@ -200,7 +200,7 @@ int download_file(const Node *n, const FileEntry *file_entry) {
     // create the output file
     char outpath[strlen(outdir) + strlen(file_entry->filename) + 1];
     strcpy(outpath, outdir);
-    strcat(outpath, file_entry->filename);
+    strncat(outpath, file_entry->filename, MAX_FILEPATH);
 
     FILE *file = fopen(outpath, "wb");
     if (file == NULL) {
@@ -261,7 +261,7 @@ int download_file(const Node *n, const FileEntry *file_entry) {
         return -1;
     }
 
-    if (total_received != response->total_segments || strcmp(response->data, "Transfer complete") != 0) {
+    if (response && total_received != response->total_segments || strcmp(response->data, "Transfer complete") != 0) {
         fprintf(stderr, "Download incomplete. Missing segments.\n");
         return -1;
     }

@@ -19,8 +19,22 @@ void create_ring(Node *n) {
 
 // join an existing chord ring
 void join_ring(Node *n, const char *existing_ip, const int existing_port) {
-    // send a JOIN message to the existing node
+    // check if existing node is reachable
     Message msg;
+    msg.request_id = generate_id();
+    strcpy(msg.type, MSG_HEARTBEAT);
+    memcpy(msg.id, n->id, HASH_SIZE);
+    strcpy(msg.ip, n->ip);
+    msg.port = n->port;
+    strcpy(msg.data, "");
+
+    if (send_message(n, existing_ip, existing_port, &msg) < 0) {
+        printf("Unable to reach the existing node at %s:%d\n", existing_ip, existing_port);
+        fflush(stdout);
+        exit(EXIT_FAILURE);
+    }
+
+    // send a JOIN message to the existing node
     msg.request_id = generate_id();
     strcpy(msg.type, MSG_JOIN);
     memcpy(msg.id, n->id, HASH_SIZE);
