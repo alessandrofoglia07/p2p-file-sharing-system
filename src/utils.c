@@ -37,7 +37,7 @@ size_t serialize_file_entries(char *buf, const size_t buf_size, const FileEntry 
         if (should_transfer_file(entry->id, new_node_id, current_node_id)) {
             const size_t entry_size = sizeof(FileEntry);
             if (offset + entry_size > buf_size) {
-                break; // not enough space
+                realloc(buf, buf_size * 2);
             }
 
             memcpy(buf + offset, entry, entry_size);

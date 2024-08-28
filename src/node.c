@@ -94,6 +94,39 @@ void handle_requests(Node *n, const Message *msg) {
 
         send_message(n, msg->ip, msg->port, &response);
 
+        char *buf = (char *) malloc(4096);
+        size_t data_size = serialize_file_entries(buf, sizeof(buf), n->files, new_node->id, n->id);
+
+        // send file entries to new node in chunks
+        const size_t chunk_size = sizeof(response.data);
+        size_t total_chunks = (data_size + chunk_size - 1) / chunk_size;
+
+        for (size_t i = 0; i < total_chunks; i++) {
+            strcpy(response.type, MSG_FILE_DATA);
+            response.segment_index = (uint16_t) i;
+            response.total_segments = (uint16_t) total_chunks;
+
+            // calculate start and end index of chunk
+            size_t start_index = i * chunk_size;
+            size_t end_index = start_index + chunk_size;
+            if (end_index > data_size) {
+                end_index = data_size;
+            }
+
+            size_t segment_size = end_index - start_index;
+            memcpy(response.data, buf + start_index, segment_size);
+            response.data_len = (uint32_t) segment_size;
+
+            // send file entries to new node
+            send_message(n, msg->ip, msg->port, &response);
+        }
+
+        strcpy(response.type, MSG_FILE_END);
+        strcpy(response.data, "");
+        response.data_len = 0;
+
+        send_message(n, msg->ip, msg->port, &response);
+
         free(new_node);
     } else if (strcmp(msg->type, MSG_FIND_SUCCESSOR) == 0) {
         // FIND_SUCCESSOR request handling
