@@ -9,6 +9,7 @@
 #include <threads.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 Node *create_node(const char *ip, const int port) {
     Node *node = (Node *) malloc(sizeof(Node));
@@ -27,6 +28,7 @@ Node *create_node(const char *ip, const int port) {
     for (int i = 0; i < M; i++) {
         node->finger[i] = node; // initially, all fingers point to the node itself
     }
+    node->socket_open = false;
     return node;
 }
 
@@ -55,18 +57,52 @@ void node_bind(Node *n) {
         free(n);
         exit(EXIT_FAILURE);
     }
+
+    n->socket_open = true;
 }
 
 void cleanup_node(Node *n) {
-    // free files
     FileEntry *file = n->files;
     while (file) {
+    Message msg;
+    if (n->successor != n) {
+        msg.request_id = generate_id();
+        strcpy(msg.type, MSG_LEAVING);
+        memcpy(msg.id, n->id, HASH_SIZE);
+        strcpy(msg.ip, n->ip);
+        msg.port = n->port;
+
+        // Allocate buffer with appropriate size
+        char *buf = (char *) malloc(4096);
+        if (buf == NULL) {
+            // Handle allocation failure
+            perror("Failed to allocate buffer");
+            return;
+        }
+        const size_t data_size = serialize_all_file_entries(&buf, 4096, n->files);
+
+        // Send file entries to the new node in chunks
+        const size_t chunk_size = sizeof(msg.data);
+        const size_t total_chunks = (data_size + chunk_size - 1) / chunk_size;
+
+        strcpy(msg.type, MSG_FILE_DATA);
+
+        // TODO: complete this
+    }
+
+    // Free files
+    while (file != NULL) {
         FileEntry *next = file->next;
         free(file);
         file = next;
     }
+
+    // Clean up
+    n->socket_open = false;
     close(n->sockfd);
     free(n);
+
+    exit(EXIT_SUCCESS);
 }
 
 void handle_requests(Node *n, const Message *msg) {
@@ -114,7 +150,7 @@ void handle_requests(Node *n, const Message *msg) {
         memcpy(response.id, n->id, HASH_SIZE);
 
         char *buf = (char *) malloc(4096);
-        size_t data_size = serialize_file_entries(&buf, sizeof(buf), n->files, msg->id, n->id);
+        size_t data_size = serialize_file_entries(&buf, 4096, n->files, msg->id, n->id);
 
         // send file entries to new node in chunks
         const size_t chunk_size = sizeof(response.data);
@@ -173,6 +209,15 @@ void handle_requests(Node *n, const Message *msg) {
             n->predecessor = new_predecessor;
         } else {
             free(new_predecessor);
+        }
+    } else if (strcmp(msg->type, MSG_UPDATE_SUCCESSOR) == 0) {
+        // UPDATE_SUCCESSOR request handling
+        Node *new_successor = create_node(msg->ip, msg->port);
+
+        if (is_in_interval(new_successor->id, n->id, n->successor->id)) {
+            n->successor = new_successor;
+        } else {
+            free(new_successor);
         }
     } else if (strcmp(msg->type, MSG_HEARTBEAT) == 0) {
         // HEARTBEAT request handling
@@ -302,6 +347,8 @@ void handle_requests(Node *n, const Message *msg) {
             strcpy(response.data, "File deleted");
         }
         send_message(n, msg->ip, msg->port, &response);
+    } else if (strcmp(msg->type, MSG_LEAVING) == 0) {
+        // TODO: handle this
     } else {
         printf("Unknown message type: %s\n", msg->type);
     }

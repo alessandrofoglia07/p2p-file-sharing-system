@@ -49,6 +49,29 @@ size_t serialize_file_entries(char **buf, const size_t buf_size, const FileEntry
     return offset;
 }
 
+size_t serialize_all_file_entries(char **buf, const size_t buf_size, const FileEntry *files) {
+    size_t offset = 0;
+    const FileEntry *entry = files;
+
+    while (entry != NULL && offset < buf_size) {
+        const size_t entry_size = sizeof(FileEntry);
+        if (offset + entry_size > buf_size) {
+            *buf = realloc(*buf, buf_size * 2);
+            if (*buf == NULL) {
+                perror("realloc");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        memcpy(*buf + offset, entry, entry_size);
+        offset += entry_size;
+
+        entry = entry->next;
+    }
+
+    return offset;
+}
+
 void deserialize_file_entries(Node *n, const char *buf, const size_t buf_size) {
     size_t offset = 0;
 

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 void init_queue(MessageQueue *queue) {
     queue->head = queue->tail = NULL;
@@ -111,6 +112,11 @@ int send_message(const Node *sender, const char *receiver_ip, const int receiver
 }
 
 int receive_message(const Node *n, Message *msg) {
+    if (!n->socket_open) {
+        usleep(10000); // Sleep for 10ms to avoid busy waiting
+        return -1;
+    }
+
     struct sockaddr_in sender_addr = {0};
     socklen_t sender_addr_len = sizeof(sender_addr);
 

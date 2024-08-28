@@ -15,6 +15,8 @@
 #define MSG_FILE_DATA "FILE_DATA"
 #define MSG_FILE_END "FILE_END"
 #define MSG_GET_FILES "GET_FILES"
+#define MSG_LEAVING "LEAVING"
+#define MSG_UPDATE_SUCCESSOR "UPDATE_SUCCESSOR"
 
 #include <pthread.h>
 #include <sha1.h>

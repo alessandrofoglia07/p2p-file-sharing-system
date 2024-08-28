@@ -4,6 +4,7 @@
 #define M 160 // number of bits in the hash (SHA-1)
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef struct Node {
     uint8_t id[20]; // SHA-1 hash
@@ -15,6 +16,7 @@ typedef struct Node {
     struct FileEntry *files;
     struct FileEntry *uploaded_files;
     int sockfd;
+    bool socket_open;
 } Node;
 
 #include "protocol.h"
