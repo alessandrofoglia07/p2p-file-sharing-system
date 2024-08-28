@@ -44,7 +44,50 @@ void join_ring(Node *n, const char *existing_ip, const int existing_port) {
     n->predecessor = NULL;
     n->successor = successor;
 
+    // start retrieving the files metadata from the successor
+    Message msg2;
+    msg2.request_id = generate_id();
+    strcpy(msg2.type, MSG_GET_FILES);
+    memcpy(msg2.id, n->id, HASH_SIZE);
+    strcpy(msg2.ip, n->ip);
+    msg2.port = n->port;
+    strcpy(msg2.data, "");
+
+    if (send_message(n, n->successor->ip, n->successor->port, &msg2) < 0) {
+        // the successor failed to respond
+        printf("Joined the ring at %s:%d\n", n->successor->ip, n->successor->port);
+        return;
+    }
+
+    char *buf = malloc(4096);
+    size_t buf_size = 4096;
+    size_t file_data_size = 0;
+
+    // receive the file metadata from the successor
+    while ((response = pop_message(&download_queue, msg2.request_id)) != NULL && strcmp(response->type, MSG_FILE_END) !=
+           0) {
+        const size_t segment_start = response->segment_index * sizeof(response->data);
+        const size_t segment_end = segment_start + response->data_len;
+
+        if (segment_end > buf_size) {
+            buf = realloc(buf, segment_end);
+            buf_size = segment_end;
+        }
+
+        memcpy(buf + segment_start, response->data, response->data_len);
+
+        if (response->segment_index + 1 == response->total_segments) {
+            file_data_size = segment_end;
+        }
+    }
+
+    if (file_data_size > 0 && response->segment_index + 1 == response->total_segments) {
+        deserialize_file_entries(n, buf, file_data_size);
+    }
+
     printf("Joined the ring at %s:%d\n", n->successor->ip, n->successor->port);
+
+    free(buf);
 }
 
 /*
