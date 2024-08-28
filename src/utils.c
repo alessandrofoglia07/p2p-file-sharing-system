@@ -28,7 +28,7 @@ int should_transfer_file(const uint8_t *file_id, const uint8_t *new_node_id, con
     return memcmp(file_id, new_node_id, HASH_SIZE) > 0 && memcmp(file_id, current_node_id, HASH_SIZE) <= 0;
 }
 
-size_t serialize_file_entries(char *buf, size_t buf_size, FileEntry *files, const uint8_t *new_node_id,
+size_t serialize_file_entries(char *buf, const size_t buf_size, const FileEntry *files, const uint8_t *new_node_id,
                               const uint8_t *current_node_id) {
     size_t offset = 0;
     const FileEntry *entry = files;
@@ -49,7 +49,7 @@ size_t serialize_file_entries(char *buf, size_t buf_size, FileEntry *files, cons
     return offset;
 }
 
-void deserialize_file_entries(Node *n, const char *buf, size_t buf_size) {
+void deserialize_file_entries(Node *n, const char *buf, const size_t buf_size) {
     size_t offset = 0;
 
     while (offset < buf_size) {

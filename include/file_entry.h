@@ -3,10 +3,13 @@
 
 #include <stdint.h>
 
+#define MAX_FILENAME 256
+#define MAX_FILEPATH 4096
+
 typedef struct FileEntry {
     uint8_t id[20]; // hash key of the file (used for lookup)
-    char filename[256];
-    char filepath[512];
+    char filename[MAX_FILENAME];
+    char filepath[MAX_FILEPATH];
     char owner_ip[16];
     int owner_port;
     struct FileEntry *next;

@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
-#define MSG_SIZE 512 // size of the message buffer
+#define MSG_SIZE 1400 // size of the message buffer
 #define MSG_JOIN "JOIN"
 #define MSG_NOTIFY "NOTIFY"
 #define MSG_FIND_SUCCESSOR "FIND_SUCCESSOR"
@@ -18,17 +18,17 @@
 #include <pthread.h>
 #include <sha1.h>
 
-// simple message protocol
 typedef struct {
     char type[16]; // message type
     uint8_t id[HASH_SIZE]; // ID involved
     char ip[16]; // IP address of the sender
     int port; // port of the sender
     uint32_t request_id; // unique identifier for matching replies
+    uint16_t segment_index; // index of the segment
+    uint16_t total_segments; // total number of segments
     size_t data_len; // length of the data (only used for FILE_DATA typed messages)
     char data[MSG_SIZE - sizeof(char[16]) - sizeof(uint8_t[HASH_SIZE]) - sizeof(char[16]) - sizeof(int) - sizeof(
-                  uint32_t) -
-              sizeof(size_t)];
+                  uint32_t) - sizeof(size_t) - sizeof(uint16_t) - sizeof(uint16_t)]; // message data
 } Message;
 
 typedef struct MessageNode {

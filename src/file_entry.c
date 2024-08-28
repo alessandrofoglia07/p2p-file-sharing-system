@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 char outdir[512] = "./";
@@ -135,23 +136,38 @@ FileEntry *find_file(Node *n, const char *filename) {
 
     send_message(n, responsible_node->ip, responsible_node->port, &msg);
 
-    const Message *response = pop_message(&reply_queue, msg.request_id);
-
-    if (response == NULL || strcmp(response->data, "File not found") == 0) {
-        return NULL; // file not found in the network or timeout occurred
-    }
-
     FileEntry *file_entry = (FileEntry *) malloc(sizeof(FileEntry));
     if (file_entry == NULL) {
         perror("malloc");
         return NULL;
     }
 
+    const Message *response = pop_message(&reply_queue, msg.request_id);
+
+    if (response == NULL || strcmp(response->data, "File not found") == 0) {
+        free(file_entry);
+        return NULL; // file not found in the network or timeout occurred
+    }
+
     memcpy(file_entry->id, response->id, HASH_SIZE);
-    strncpy(file_entry->filepath, response->data, sizeof(file_entry->filepath));
-    strncpy(file_entry->filename, filename, sizeof(file_entry->filename));
+    strncpy(file_entry->filename, filename, sizeof(file_entry->filename) - 1);
+    file_entry->filename[sizeof(file_entry->filename) - 1] = '\0';
     strcpy(file_entry->owner_ip, response->ip);
     file_entry->owner_port = response->port;
+    strncpy(file_entry->filepath, response->data, response->data_len);
+    file_entry->filepath[response->data_len] = '\0';
+
+    if (response->total_segments > 1) {
+        for (int i = 1; i < response->total_segments; i++) {
+            response = pop_message(&reply_queue, msg.request_id);
+            if (response == NULL) {
+                // Handle error, possibly free memory or return an error code
+                free(file_entry);
+                return NULL;
+            }
+            strncat(file_entry->filepath, response->data, response->data_len);
+        }
+    }
 
     return file_entry;
 }
@@ -182,7 +198,7 @@ int download_file(const Node *n, const FileEntry *file_entry) {
     }
 
     // create the output file
-    char outpath[sizeof(outdir) + sizeof(file_entry->filename)];
+    char outpath[strlen(outdir) + strlen(file_entry->filename) + 1];
     strcpy(outpath, outdir);
     strcat(outpath, file_entry->filename);
 
@@ -193,22 +209,62 @@ int download_file(const Node *n, const FileEntry *file_entry) {
     }
 
     const Message *response = pop_message(&reply_queue, msg.request_id);
+    if (response == NULL) {
+        fclose(file);
+        return -1;
+    }
 
     if (strcmp(response->data, "Starting download") != 0) {
         fclose(file);
         return -1;
     }
 
-    while ((response = pop_message(&download_queue, msg.request_id)) != NULL) {
-        // check if the file download is complete
+    bool *received_segments = calloc(response->total_segments, sizeof(bool));
+    if (received_segments == NULL) {
+        perror("calloc");
+        fclose(file);
+        return -1;
+    }
+
+    size_t total_received = 0;
+    int retries = 0;
+    const int max_retries = 10;
+
+    while (total_received < response->total_segments && retries < max_retries) {
+        response = pop_message(&download_queue, msg.request_id);
+        if (response == NULL) {
+            retries++;
+            usleep(1000);
+            continue;
+        }
+        retries = 0; // reset retries after successful receive
+
+        if (received_segments[response->segment_index]) {
+            continue;
+        }
+
+        fseek(file, response->segment_index * MSG_SIZE, SEEK_SET);
+        fwrite(response->data, 1, response->data_len, file);
+        received_segments[response->segment_index] = true;
+        total_received++;
+
         if (strcmp(response->type, MSG_FILE_END) == 0) {
             break;
         }
-        // write the file data to the output file
-        fwrite(response->data, 1, response->data_len, file);
     }
 
+    free(received_segments);
     fclose(file);
+
+    if (retries == max_retries) {
+        fprintf(stderr, "Timeout waiting for segments.\n");
+        return -1;
+    }
+
+    if (total_received != response->total_segments) {
+        fprintf(stderr, "Download incomplete. Missing segments.\n");
+        return -1;
+    }
 
     return 0;
 }

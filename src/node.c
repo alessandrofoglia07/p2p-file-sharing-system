@@ -151,9 +151,23 @@ void handle_requests(Node *n, const Message *msg) {
             memcpy(response.id, file->id, HASH_SIZE);
             strcpy(response.ip, file->owner_ip);
             response.port = file->owner_port;
-            strcpy(response.data, file->filepath);
+            response.segment_index = 0;
+            response.total_segments = (strlen(file->filepath) + sizeof(response.data) - 1) / sizeof(response.data);
 
-            send_message(n, msg->ip, msg->port, &response);
+            size_t bytes_sent = 0;
+
+            for (int i = 0; i < response.total_segments; i++) {
+                size_t copy_len = strlen(file->filepath) - bytes_sent > sizeof(response.data)
+                                      ? sizeof(response.data)
+                                      : strlen(file->filepath) - bytes_sent;
+                memcpy(response.data, file->filepath + bytes_sent, copy_len);
+                response.data[copy_len] = '\0'; // Ensure null-termination
+                response.data_len = copy_len;
+                send_message(n, msg->ip, msg->port, &response);
+                bytes_sent += response.data_len;
+                response.segment_index++;
+                usleep(1000);
+            }
         } else {
             Message response;
             response.request_id = msg->request_id;
@@ -167,14 +181,23 @@ void handle_requests(Node *n, const Message *msg) {
     } else if (strcmp(msg->type, MSG_DOWNLOAD_FILE) == 0) {
         // DOWNLOAD_FILE request handling
         const char *filepath = msg->data;
-        // ensure the file was uploaded by this node before sending it
+        // Ensure the file was uploaded by this node before sending it
         const FileEntry *file_entry = find_uploaded_file(n, filepath);
         if (file_entry != NULL) {
             FILE *file = fopen(file_entry->filepath, "rb");
             if (file == NULL) {
                 perror("Failed to open file");
+                Message response;
+                response.request_id = msg->request_id;
+                strcpy(response.type, MSG_REPLY);
+                memset(response.id, 0, HASH_SIZE);
+                strcpy(response.ip, file_entry->owner_ip);
+                response.port = file_entry->owner_port;
+                strcpy(response.data, "Failed to open file");
+                send_message(n, msg->ip, msg->port, &response);
                 return;
             }
+
             Message response;
             response.request_id = msg->request_id;
             strcpy(response.type, MSG_REPLY);
@@ -187,16 +210,30 @@ void handle_requests(Node *n, const Message *msg) {
 
             strcpy(response.type, MSG_FILE_DATA);
 
-            size_t bytes_read;
+            size_t file_size;
+            fseek(file, 0, SEEK_END);
+            file_size = ftell(file);
+            rewind(file);
 
-            while ((bytes_read = fread(response.data, 1, sizeof(response.data), file)) > 0) {
+            response.total_segments = (file_size + sizeof(response.data) - 1) / sizeof(response.data);
+
+            size_t bytes_read;
+            size_t data_size = sizeof(response.data);
+            int status = 0;
+
+            response.segment_index = 0;
+            while ((bytes_read = fread(response.data, 1, data_size, file)) > 0) {
                 response.data_len = bytes_read;
-                send_message(n, msg->ip, msg->port, &response);
+                if (send_message(n, msg->ip, msg->port, &response) < 0) {
+                    status = -1;
+                    break;
+                }
+                response.segment_index++;
                 usleep(1000);
             }
 
             strcpy(response.type, MSG_FILE_END);
-            strcpy(response.data, "");
+            strcpy(response.data, status == 0 ? "Transfer complete" : "Transfer interrupted");
             send_message(n, msg->ip, msg->port, &response);
 
             fclose(file);
