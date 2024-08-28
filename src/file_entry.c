@@ -230,7 +230,7 @@ int download_file(const Node *n, const FileEntry *file_entry) {
     int retries = 0;
     const int max_retries = 10;
 
-    while (total_received < response->total_segments && retries < max_retries) {
+    while (total_received < response->total_segments + 1 && retries < max_retries) {
         response = pop_message(&download_queue, msg.request_id);
         if (response == NULL) {
             retries++;
@@ -243,14 +243,14 @@ int download_file(const Node *n, const FileEntry *file_entry) {
             continue;
         }
 
+        if (strcmp(response->type, MSG_FILE_END) == 0) {
+            break;
+        }
+
         fseek(file, response->segment_index * MSG_SIZE, SEEK_SET);
         fwrite(response->data, 1, response->data_len, file);
         received_segments[response->segment_index] = true;
         total_received++;
-
-        if (strcmp(response->type, MSG_FILE_END) == 0) {
-            break;
-        }
     }
 
     free(received_segments);
@@ -261,7 +261,7 @@ int download_file(const Node *n, const FileEntry *file_entry) {
         return -1;
     }
 
-    if (total_received != response->total_segments) {
+    if (total_received != response->total_segments || strcmp(response->data, "Transfer complete") != 0) {
         fprintf(stderr, "Download incomplete. Missing segments.\n");
         return -1;
     }

@@ -206,9 +206,6 @@ void handle_requests(Node *n, const Message *msg) {
             response.port = file_entry->owner_port;
 
             strcpy(response.data, "Starting download");
-            send_message(n, msg->ip, msg->port, &response);
-
-            strcpy(response.type, MSG_FILE_DATA);
 
             size_t file_size;
             fseek(file, 0, SEEK_END);
@@ -216,12 +213,15 @@ void handle_requests(Node *n, const Message *msg) {
             rewind(file);
 
             response.total_segments = (file_size + sizeof(response.data) - 1) / sizeof(response.data);
+            send_message(n, msg->ip, msg->port, &response);
+
 
             size_t bytes_read;
             size_t data_size = sizeof(response.data);
             int status = 0;
 
             response.segment_index = 0;
+            strcpy(response.type, MSG_FILE_DATA);
             while ((bytes_read = fread(response.data, 1, data_size, file)) > 0) {
                 response.data_len = bytes_read;
                 if (send_message(n, msg->ip, msg->port, &response) < 0) {
