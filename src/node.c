@@ -63,7 +63,6 @@ void node_bind(Node *n) {
 
 void cleanup_node(Node *n) {
     FileEntry *file = n->files;
-    while (file) {
     Message msg;
     if (n->successor != n) {
         msg.request_id = generate_id();
@@ -88,6 +87,60 @@ void cleanup_node(Node *n) {
         strcpy(msg.type, MSG_FILE_DATA);
 
         // TODO: complete this
+        for (size_t i = 0; i < total_chunks; i++) {
+            msg.segment_index = (uint16_t) i;
+            msg.total_segments = (uint16_t) total_chunks;
+
+            const size_t start_index = i * chunk_size;
+            size_t end_index = start_index + chunk_size;
+            if (end_index > data_size) {
+                end_index = data_size;
+            }
+
+            const size_t segment_size = end_index - start_index;
+            memcpy(msg.data, buf + start_index, segment_size);
+            msg.data_len = (uint32_t) segment_size;
+
+            // Send the message, with error handling
+            if (send_message(n, n->successor->ip, n->successor->port, &msg) < 0) {
+                perror("Failed to send file data message");
+                free(buf);
+                return;
+            }
+        }
+
+        strcpy(msg.type, MSG_FILE_END);
+        strcpy(msg.data, "");
+        msg.data_len = 0;
+        if (send_message(n, n->successor->ip, n->successor->port, &msg) < 0) {
+            perror("Failed to send file end message");
+        }
+
+        // Free allocated buffer
+        free(buf);
+
+        if (n->predecessor != NULL) {
+            // Update predecessor's successor
+            strcpy(msg.type, MSG_UPDATE_SUCCESSOR);
+            msg.request_id = generate_id();
+            memcpy(msg.id, n->successor->id, HASH_SIZE);
+            strcpy(msg.ip, n->successor->ip);
+            msg.port = n->successor->port;
+            if (send_message(n, n->predecessor->ip, n->predecessor->port, &msg) < 0) {
+                perror("Failed to update predecessor's successor");
+            }
+            // Update successor's predecessor
+            strcpy(msg.type, MSG_NOTIFY);
+            msg.request_id = generate_id();
+            memcpy(msg.id, n->predecessor->id, HASH_SIZE);
+            strcpy(msg.ip, n->predecessor->ip);
+            msg.port = n->predecessor->port;
+            if (send_message(n, n->successor->ip, n->successor->port, &msg) < 0) {
+                perror("Failed to notify successor");
+            }
+            free(n->predecessor);
+        }
+        free(n->successor);
     }
 
     // Free files
@@ -349,6 +402,31 @@ void handle_requests(Node *n, const Message *msg) {
         send_message(n, msg->ip, msg->port, &response);
     } else if (strcmp(msg->type, MSG_LEAVING) == 0) {
         // TODO: handle this
+        char *buf = malloc(4096);
+        size_t buf_size = 4096;
+        size_t file_data_size = 0;
+
+        // receive the file metadata from the successor
+        while ((msg = pop_message(&download_queue, msg->request_id)) != NULL && strcmp(msg->type, MSG_FILE_END) !=
+               0) {
+            const size_t segment_start = msg->segment_index * sizeof(msg->data);
+            const size_t segment_end = segment_start + msg->data_len;
+
+            if (segment_end > buf_size) {
+                buf = realloc(buf, segment_end);
+                buf_size = segment_end;
+            }
+
+            memcpy(buf + segment_start, msg->data, msg->data_len);
+
+            if (msg->segment_index + 1 == msg->total_segments) {
+                file_data_size = segment_end;
+            }
+        }
+
+        if (file_data_size > 0 && msg->segment_index + 1 == msg->total_segments) {
+            deserialize_file_entries(n, buf, file_data_size);
+        }
     } else {
         printf("Unknown message type: %s\n", msg->type);
     }
