@@ -15,40 +15,40 @@
 
 ## Key Features
 
-- **Distributed Hash Table (DHT) Implementation**: Utilizes
+- 🚀 **Distributed Hash Table (DHT) Implementation**: Utilizes
   the [Chord](https://en.wikipedia.org/wiki/Chord_(peer-to-peer)) protocol for efficient and scalable
   peer-to-peer
   file lookup and storage.
 
-- **Dynamic Ring Formation**: Supports both the creation of new rings and joining existing ones, allowing nodes to
+- 🔄 **Dynamic Ring Formation**: Supports both the creation of new rings and joining existing ones, allowing nodes to
   connect
   and disconnect without disrupting the system.
 
-- **File Storage and Retrieval**: Enables decentralized file storage and retrieval with automatic assignment of files to
+- 📁 **File Storage and Retrieval**: Enables decentralized file storage and retrieval with automatic assignment of files to
   responsible nodes based on their hashed identifiers.
 
-- **Efficient Successor and Predecessor Management**: Periodic stabilization routines ensure consistent and correct
+- 🔧 **Efficient Successor and Predecessor Management**: Periodic stabilization routines ensure consistent and correct
   successor and predecessor pointers, maintaining the integrity of the ring.
 
-- **Fault Tolerance**: Nodes periodically send heartbeat messages to detect and handle node failures, ensuring high
+- 🔒 **Fault Tolerance**: Nodes periodically send heartbeat messages to detect and handle node failures, ensuring high
   availability and reliability.
 
-- **Threaded Node Management**:
+- 🧵 **Threaded Node Management**:
   Utilizes [multi-threading](https://en.wikipedia.org/wiki/Multithreading_(computer_architecture)) to manage node
   activities, such as handling incoming
   connections,
   stabilizing the ring, and processing user commands concurrently.
 
-- **Command Line Interface**: Provides a simple and intuitive command-line interface for node management, file
+- 💻 **Command Line Interface**: Provides a simple and intuitive command-line interface for node management, file
   operations,
   and network communication.
 
-- **SHA-1 Based Hashing**: Uses [SHA-1](https://en.wikipedia.org/wiki/SHA-1) hashing for generating unique file
+- 🔑 **SHA-1 Based Hashing**: Uses [SHA-1](https://en.wikipedia.org/wiki/SHA-1) hashing for generating unique file
   identifiers and node IDs, ensuring efficient
   and
   collision-resistant key distribution.
 
-- **Graceful Shutdown**: Ensures all active threads and connections are properly terminated upon exit, preserving the
+- 🛑 **Graceful Shutdown**: Ensures all active threads and connections are properly terminated upon exit, preserving the
   system's stability and preventing data loss.
 
 ## How To Use
